@@ -6,6 +6,7 @@ interface SalaryStore {
   entries: EntriesMap;
   settings: DefaultSettings;
   actualPayments: ActualPaymentsMap;
+  loadError: string | null;
   addEntry: (dateKey: string, entry: WorkEntry) => void;
   updateEntry: (dateKey: string, entry: WorkEntry) => void;
   deleteEntry: (dateKey: string, id: string) => void;
@@ -62,6 +63,7 @@ export const useSalaryStore = create<SalaryStore>()((set, get) => ({
   entries: {},
   settings: DEFAULT_SETTINGS,
   actualPayments: {},
+  loadError: null,
 
   addEntry: async (dateKey, entry) => {
     const newEntries = {
@@ -111,7 +113,7 @@ export const useSalaryStore = create<SalaryStore>()((set, get) => ({
     if (userId) await upsertActualPayment(userId, monthKey, amount);
   },
 
-  clearStore: () => set({ entries: {}, actualPayments: {}, settings: DEFAULT_SETTINGS }),
+  clearStore: () => set({ entries: {}, actualPayments: {}, settings: DEFAULT_SETTINGS, loadError: null }),
 
   loadFromSupabase: async (userId) => {
     try {
@@ -121,7 +123,11 @@ export const useSalaryStore = create<SalaryStore>()((set, get) => ({
         supabase.from('actual_payments').select('month_key, amount').eq('user_id', userId),
       ]);
 
-      if (entriesRes.error) console.error('load entries error:', entriesRes.error.message);
+      if (entriesRes.error) {
+        console.error('load entries error:', entriesRes.error.message);
+        set({ loadError: 'Supabaseへの接続に失敗しました。環境変数を確認してください。' });
+        return;
+      }
       if (settingsRes.error) console.error('load settings error:', settingsRes.error.message);
       if (paymentsRes.error) console.error('load actual_payments error:', paymentsRes.error.message);
 
@@ -139,9 +145,11 @@ export const useSalaryStore = create<SalaryStore>()((set, get) => ({
         entries,
         actualPayments,
         settings: (settingsRes.data?.data as DefaultSettings) ?? DEFAULT_SETTINGS,
+        loadError: null,
       });
     } catch (e) {
       console.error('loadFromSupabase error:', e);
+      set({ loadError: 'Supabaseへの接続に失敗しました。環境変数を確認してください。' });
     }
   },
 }));

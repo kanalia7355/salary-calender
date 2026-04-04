@@ -19,6 +19,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const loadFromSupabase = useSalaryStore((s) => s.loadFromSupabase);
   const clearStore = useSalaryStore((s) => s.clearStore);
+  const loadError = useSalaryStore((s) => s.loadError);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -124,6 +125,20 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
+      {loadError && (
+        <div className="bg-red-800 text-red-100 text-sm px-4 py-3 flex items-center gap-2">
+          <span>⚠</span>
+          <span>{loadError}</span>
+          <a
+            href="https://vercel.com/docs/projects/environment-variables"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline ml-1"
+          >
+            Vercel環境変数の設定方法
+          </a>
+        </div>
+      )}
       <div className="max-w-6xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-4 gap-2">
