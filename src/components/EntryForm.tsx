@@ -209,6 +209,10 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
             <span className="text-yellow-400">残業</span>
             <span className="text-yellow-400">{preview.overtimeHours.toFixed(2)} h</span>
           </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-purple-400">深夜割増（22〜4時）</span>
+            <span className="text-purple-400">{preview.deepNightHours.toFixed(2)} h</span>
+          </div>
           <div className="border-t border-gray-200 dark:border-gray-700 pt-1 mt-1 space-y-1">
             <div className="flex justify-between text-sm">
               <span className="text-gray-500 dark:text-gray-400">給与</span>

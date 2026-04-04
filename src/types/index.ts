@@ -20,6 +20,7 @@ export interface CalcResult {
   workHours: number;
   regularHours: number;
   overtimeHours: number;
+  deepNightHours: number;  // 22:00〜翌4:00 に重なる労働時間
   pay: number;
   transport: number;
 }
