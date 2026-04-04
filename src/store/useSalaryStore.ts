@@ -12,6 +12,7 @@ interface SalaryStore {
   updateSettings: (settings: DefaultSettings) => void;
   setActualPayment: (monthKey: string, amount: number) => void;
   loadFromSupabase: (userId: string) => Promise<void>;
+  clearStore: () => void;
 }
 
 const DEFAULT_SETTINGS: DefaultSettings = {
@@ -109,6 +110,8 @@ export const useSalaryStore = create<SalaryStore>()((set, get) => ({
     const userId = await getCurrentUserId();
     if (userId) await upsertActualPayment(userId, monthKey, amount);
   },
+
+  clearStore: () => set({ entries: {}, actualPayments: {}, settings: DEFAULT_SETTINGS }),
 
   loadFromSupabase: async (userId) => {
     try {

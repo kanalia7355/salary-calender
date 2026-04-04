@@ -18,6 +18,7 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const loadFromSupabase = useSalaryStore((s) => s.loadFromSupabase);
+  const clearStore = useSalaryStore((s) => s.clearStore);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -37,7 +38,19 @@ export default function App() {
     }
   }, [session?.user.id, loadFromSupabase]);
 
+  // タブがアクティブになった瞬間に最新データを取得（スマホでタブ開きっぱなし対策）
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && session?.user.id) {
+        loadFromSupabase(session.user.id);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [session?.user.id, loadFromSupabase]);
+
   const handleLogout = async () => {
+    clearStore();
     await supabase.auth.signOut();
   };
 
