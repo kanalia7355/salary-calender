@@ -1,5 +1,9 @@
 import type { WorkEntry, DefaultSettings, CalcResult } from '../types';
 
+export function formatCurrency(amount: number): string {
+  return `¥${amount.toLocaleString('ja-JP', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export function calcEntry(entry: WorkEntry, def: DefaultSettings): CalcResult {
   const [sh, sm] = entry.startTime.split(':').map(Number);
   const [eh, em] = entry.endTime.split(':').map(Number);
@@ -20,7 +24,7 @@ export function calcEntry(entry: WorkEntry, def: DefaultSettings): CalcResult {
     workHours,
     regularHours,
     overtimeHours,
-    pay: Math.round(pay),
+    pay,
     transport: entry.transportFee,
   };
 }

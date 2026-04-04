@@ -1,5 +1,5 @@
 import type { WorkEntry, DefaultSettings } from '../types';
-import { calcEntry } from '../utils/calc';
+import { calcEntry, formatCurrency } from '../utils/calc';
 
 interface Props {
   day: number | null;
@@ -42,7 +42,7 @@ export default function DayCell({ day, dateKey: _dateKey, entries, settings, isT
           <div className="bg-green-700 rounded px-1 py-0.5 text-xs text-green-100 truncate leading-tight">
             {entries.length === 1 ? entries[0].projectName : `${entries.length}件`}
           </div>
-          <div className="text-xs text-green-400 font-medium truncate">¥{totalPay.toLocaleString()}</div>
+          <div className="text-xs text-green-400 font-medium truncate">{formatCurrency(totalPay)}</div>
         </div>
       )}
     </div>

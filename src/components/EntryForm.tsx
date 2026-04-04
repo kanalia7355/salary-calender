@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import type { WorkEntry, CalcResult } from '../types';
 import { useSalaryStore } from '../store/useSalaryStore';
-import { calcEntry } from '../utils/calc';
+import { calcEntry, formatCurrency } from '../utils/calc';
 
 interface Props {
   dateKey: string;
@@ -156,15 +156,15 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
           <div className="border-t border-gray-700 pt-1 mt-1 space-y-1">
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">給与</span>
-              <span className="text-white">¥{preview.pay.toLocaleString()}</span>
+              <span className="text-white">{formatCurrency(preview.pay)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-400">交通費</span>
-              <span className="text-white">¥{preview.transport.toLocaleString()}</span>
+              <span className="text-white">{formatCurrency(preview.transport)}</span>
             </div>
             <div className="flex justify-between text-sm font-bold">
               <span className="text-gray-300">合計</span>
-              <span className="text-blue-400">¥{(preview.pay + preview.transport).toLocaleString()}</span>
+              <span className="text-blue-400">{formatCurrency(preview.pay + preview.transport)}</span>
             </div>
           </div>
         </div>

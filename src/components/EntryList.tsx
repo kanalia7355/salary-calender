@@ -1,6 +1,6 @@
 import { useSalaryStore } from '../store/useSalaryStore';
 import type { WorkEntry } from '../types';
-import { calcEntry } from '../utils/calc';
+import { calcEntry, formatCurrency } from '../utils/calc';
 
 interface Props {
   dateKey: string;
@@ -58,7 +58,7 @@ export default function EntryList({ dateKey, onAdd, onEdit }: Props) {
                   {e.startTime}〜{e.endTime}（休憩{e.breakMinutes}分）
                 </div>
                 <div className="text-green-400 text-xs mt-1">
-                  {r.workHours.toFixed(2)}h / ¥{(r.pay + r.transport).toLocaleString()}
+                  {r.workHours.toFixed(2)}h / {formatCurrency(r.pay + r.transport)}
                 </div>
               </div>
             );
@@ -70,7 +70,7 @@ export default function EntryList({ dateKey, onAdd, onEdit }: Props) {
         <div className="mt-3 pt-3 border-t border-gray-700">
           <div className="flex justify-between text-sm">
             <span className="text-gray-400">日次合計</span>
-            <span className="text-white font-bold">¥{totalPay.toLocaleString()}</span>
+            <span className="text-white font-bold">{formatCurrency(totalPay)}</span>
           </div>
         </div>
       )}

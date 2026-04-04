@@ -38,15 +38,22 @@ export default function App() {
     }
   }, [session?.user.id, loadFromSupabase]);
 
-  // タブがアクティブになった瞬間に最新データを取得（スマホでタブ開きっぱなし対策）
+  // Supabase Realtimeで他端末の変更をリアルタイム受信
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && session?.user.id) {
-        loadFromSupabase(session.user.id);
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    if (!session?.user.id) return;
+    const userId = session.user.id;
+
+    const channel = supabase
+      .channel(`user-${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'entries', filter: `user_id=eq.${userId}` },
+        () => loadFromSupabase(userId))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'settings', filter: `user_id=eq.${userId}` },
+        () => loadFromSupabase(userId))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'actual_payments', filter: `user_id=eq.${userId}` },
+        () => loadFromSupabase(userId))
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [session?.user.id, loadFromSupabase]);
 
   const handleLogout = async () => {

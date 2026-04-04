@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSalaryStore } from '../store/useSalaryStore';
-import { calcEntry } from '../utils/calc';
+import { calcEntry, formatCurrency } from '../utils/calc';
 
 interface Props {
   year: number;
@@ -68,17 +68,17 @@ export default function YearlySummary({ year }: Props) {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3 mb-5">
         <div className="bg-gray-800 rounded-lg p-3">
           <div className="text-xs text-gray-400 mb-0.5">年間給与見込み</div>
-          <div className="text-sm md:text-lg font-bold text-white">¥{totalExpected.toLocaleString()}</div>
+          <div className="text-sm md:text-lg font-bold text-white">{formatCurrency(totalExpected)}</div>
         </div>
         <div className="bg-blue-600 rounded-lg p-3">
           <div className="text-xs text-gray-200 mb-0.5">実振込額合計 ({registeredCount}ヶ月)</div>
-          <div className="text-sm md:text-lg font-bold text-white">¥{totalActual.toLocaleString()}</div>
+          <div className="text-sm md:text-lg font-bold text-white">{formatCurrency(totalActual)}</div>
         </div>
         <div className={`rounded-lg p-3 col-span-2 md:col-span-1 ${totalActual - totalExpected >= 0 ? 'bg-green-800' : 'bg-red-900'}`}>
           <div className="text-xs text-gray-300 mb-0.5">差額（実振込 − 見込み）</div>
           <div className="text-sm md:text-lg font-bold text-white">
             {registeredCount > 0
-              ? `${totalActual - totalExpected >= 0 ? '+' : ''}¥${(totalActual - totalExpected).toLocaleString()}`
+              ? `${totalActual - totalExpected >= 0 ? '+' : ''}${formatCurrency(totalActual - totalExpected)}`
               : '—'}
           </div>
         </div>
@@ -104,7 +104,7 @@ export default function YearlySummary({ year }: Props) {
                   {days > 0 ? `${days}日` : <span className="text-gray-600">—</span>}
                 </td>
                 <td className="py-2 px-2 text-right text-white">
-                  {expected > 0 ? `¥${expected.toLocaleString()}` : <span className="text-gray-600">—</span>}
+                  {expected > 0 ? formatCurrency(expected) : <span className="text-gray-600">—</span>}
                 </td>
                 <td className="py-2 px-2 text-right">
                   {editingMonth === monthKey ? (
@@ -123,7 +123,7 @@ export default function YearlySummary({ year }: Props) {
                       className="group flex items-center justify-end gap-1 w-full"
                     >
                       <span className={actual !== null ? 'text-white' : 'text-gray-600'}>
-                        {actual !== null ? `¥${actual.toLocaleString()}` : '未登録'}
+                        {actual !== null ? formatCurrency(actual) : '未登録'}
                       </span>
                       <span className="text-gray-600 text-xs opacity-0 group-hover:opacity-100 transition-opacity">✎</span>
                     </button>
@@ -132,7 +132,7 @@ export default function YearlySummary({ year }: Props) {
                 <td className="py-2 pl-2 text-right">
                   {diff !== null ? (
                     <span className={diff >= 0 ? 'text-green-400' : 'text-red-400'}>
-                      {diff >= 0 ? '+' : ''}¥{diff.toLocaleString()}
+                      {diff >= 0 ? '+' : ''}{formatCurrency(diff)}
                     </span>
                   ) : (
                     <span className="text-gray-600">—</span>
@@ -147,14 +147,14 @@ export default function YearlySummary({ year }: Props) {
               <td className="py-2 px-2 text-right text-gray-400">
                 {rows.reduce((s, r) => s + r.days, 0)}日
               </td>
-              <td className="py-2 px-2 text-right text-white">¥{totalExpected.toLocaleString()}</td>
+              <td className="py-2 px-2 text-right text-white">{formatCurrency(totalExpected)}</td>
               <td className="py-2 px-2 text-right text-white">
-                {registeredCount > 0 ? `¥${totalActual.toLocaleString()}` : '—'}
+                {registeredCount > 0 ? formatCurrency(totalActual) : '—'}
               </td>
               <td className="py-2 pl-2 text-right">
                 {registeredCount > 0 ? (
                   <span className={totalActual - totalExpected >= 0 ? 'text-green-400' : 'text-red-400'}>
-                    {totalActual - totalExpected >= 0 ? '+' : ''}¥{(totalActual - totalExpected).toLocaleString()}
+                    {totalActual - totalExpected >= 0 ? '+' : ''}{formatCurrency(totalActual - totalExpected)}
                   </span>
                 ) : '—'}
               </td>
