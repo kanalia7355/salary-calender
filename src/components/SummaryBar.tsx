@@ -29,7 +29,7 @@ export default function SummaryBar({ year, month }: Props) {
   });
 
   return (
-    <div className="flex gap-3 mb-4">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4">
       <MetricCard label="勤務日数" value={`${days}日`} />
       <MetricCard label="総勤務時間" value={`${totalHours.toFixed(1)} h`} />
       <MetricCard label="給与合計" value={`¥${totalPay.toLocaleString()}`} />

@@ -25,3 +25,6 @@ export interface CalcResult {
 }
 
 export type EntriesMap = Record<string, WorkEntry[]>;
+
+// key: "YYYY-MM"
+export type ActualPaymentsMap = Record<string, number>;

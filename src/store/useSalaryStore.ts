@@ -1,14 +1,16 @@
 import { create } from 'zustand';
-import type { WorkEntry, DefaultSettings, EntriesMap } from '../types';
+import type { WorkEntry, DefaultSettings, EntriesMap, ActualPaymentsMap } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface SalaryStore {
   entries: EntriesMap;
   settings: DefaultSettings;
+  actualPayments: ActualPaymentsMap;
   addEntry: (dateKey: string, entry: WorkEntry) => void;
   updateEntry: (dateKey: string, entry: WorkEntry) => void;
   deleteEntry: (dateKey: string, id: string) => void;
   updateSettings: (settings: DefaultSettings) => void;
+  setActualPayment: (monthKey: string, amount: number) => void;
   loadFromSupabase: (userId: string) => Promise<void>;
 }
 
@@ -18,7 +20,6 @@ const DEFAULT_SETTINGS: DefaultSettings = {
   overtimeMultiplier: 1.25,
 };
 
-// entries テーブルの1行分をupsertする
 async function upsertEntries(userId: string, dateKey: string, data: WorkEntry[]) {
   const { error } = await supabase
     .from('entries')
@@ -44,6 +45,13 @@ async function upsertSettings(userId: string, data: DefaultSettings) {
   if (error) console.error('upsertSettings error:', error.message);
 }
 
+async function upsertActualPayment(userId: string, monthKey: string, amount: number) {
+  const { error } = await supabase
+    .from('actual_payments')
+    .upsert({ user_id: userId, month_key: monthKey, amount });
+  if (error) console.error('upsertActualPayment error:', error.message);
+}
+
 async function getCurrentUserId(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
   return data.session?.user.id ?? null;
@@ -52,6 +60,7 @@ async function getCurrentUserId(): Promise<string | null> {
 export const useSalaryStore = create<SalaryStore>()((set, get) => ({
   entries: {},
   settings: DEFAULT_SETTINGS,
+  actualPayments: {},
 
   addEntry: async (dateKey, entry) => {
     const newEntries = {
@@ -95,23 +104,37 @@ export const useSalaryStore = create<SalaryStore>()((set, get) => ({
     if (userId) await upsertSettings(userId, settings);
   },
 
+  setActualPayment: async (monthKey, amount) => {
+    set((s) => ({ actualPayments: { ...s.actualPayments, [monthKey]: amount } }));
+    const userId = await getCurrentUserId();
+    if (userId) await upsertActualPayment(userId, monthKey, amount);
+  },
+
   loadFromSupabase: async (userId) => {
     try {
-      const [entriesRes, settingsRes] = await Promise.all([
+      const [entriesRes, settingsRes, paymentsRes] = await Promise.all([
         supabase.from('entries').select('date_key, data').eq('user_id', userId),
         supabase.from('settings').select('data').eq('user_id', userId).maybeSingle(),
+        supabase.from('actual_payments').select('month_key, amount').eq('user_id', userId),
       ]);
 
       if (entriesRes.error) console.error('load entries error:', entriesRes.error.message);
       if (settingsRes.error) console.error('load settings error:', settingsRes.error.message);
+      if (paymentsRes.error) console.error('load actual_payments error:', paymentsRes.error.message);
 
       const entries: EntriesMap = {};
       for (const row of entriesRes.data ?? []) {
         entries[row.date_key] = row.data as WorkEntry[];
       }
 
+      const actualPayments: ActualPaymentsMap = {};
+      for (const row of paymentsRes.data ?? []) {
+        actualPayments[row.month_key] = row.amount;
+      }
+
       set({
         entries,
+        actualPayments,
         settings: (settingsRes.data?.data as DefaultSettings) ?? DEFAULT_SETTINGS,
       });
     } catch (e) {
