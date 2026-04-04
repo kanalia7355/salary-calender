@@ -66,16 +66,16 @@ export default function YearlySummary({ year }: Props) {
     <div>
       {/* 年次サマリーカード */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3 mb-5">
-        <div className="bg-gray-800 rounded-lg p-3">
-          <div className="text-xs text-gray-400 mb-0.5">年間給与見込み</div>
-          <div className="text-sm md:text-lg font-bold text-white">{formatCurrency(totalExpected)}</div>
+        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">年間給与見込み</div>
+          <div className="text-sm md:text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(totalExpected)}</div>
         </div>
         <div className="bg-blue-600 rounded-lg p-3">
           <div className="text-xs text-gray-200 mb-0.5">実振込額合計 ({registeredCount}ヶ月)</div>
           <div className="text-sm md:text-lg font-bold text-white">{formatCurrency(totalActual)}</div>
         </div>
         <div className={`rounded-lg p-3 col-span-2 md:col-span-1 ${totalActual - totalExpected >= 0 ? 'bg-green-800' : 'bg-red-900'}`}>
-          <div className="text-xs text-gray-300 mb-0.5">差額（実振込 − 見込み）</div>
+          <div className="text-xs text-gray-700 dark:text-gray-300 mb-0.5">差額（実振込 − 見込み）</div>
           <div className="text-sm md:text-lg font-bold text-white">
             {registeredCount > 0
               ? `${totalActual - totalExpected >= 0 ? '+' : ''}${formatCurrency(totalActual - totalExpected)}`
@@ -88,7 +88,7 @@ export default function YearlySummary({ year }: Props) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-gray-400 text-xs border-b border-gray-700">
+            <tr className="text-gray-500 dark:text-gray-400 text-xs border-b border-gray-200 dark:border-gray-700">
               <th className="text-left py-2 pr-2 font-medium">月</th>
               <th className="text-right py-2 px-2 font-medium">勤務日数</th>
               <th className="text-right py-2 px-2 font-medium">給与見込み</th>
@@ -98,20 +98,20 @@ export default function YearlySummary({ year }: Props) {
           </thead>
           <tbody>
             {rows.map(({ label, monthKey, days, expected, actual, diff }) => (
-              <tr key={monthKey} className="border-b border-gray-800 hover:bg-gray-800/50 transition-colors">
-                <td className="py-2 pr-2 text-gray-200 font-medium">{label}</td>
-                <td className="py-2 px-2 text-right text-gray-400">
-                  {days > 0 ? `${days}日` : <span className="text-gray-600">—</span>}
+              <tr key={monthKey} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                <td className="py-2 pr-2 text-gray-700 dark:text-gray-200 font-medium">{label}</td>
+                <td className="py-2 px-2 text-right text-gray-500 dark:text-gray-400">
+                  {days > 0 ? `${days}日` : <span className="text-gray-400 dark:text-gray-600">—</span>}
                 </td>
-                <td className="py-2 px-2 text-right text-white">
-                  {expected > 0 ? formatCurrency(expected) : <span className="text-gray-600">—</span>}
+                <td className="py-2 px-2 text-right text-gray-900 dark:text-white">
+                  {expected > 0 ? formatCurrency(expected) : <span className="text-gray-400 dark:text-gray-600">—</span>}
                 </td>
                 <td className="py-2 px-2 text-right">
                   {editingMonth === monthKey ? (
                     <input
                       type="number"
                       autoFocus
-                      className="w-28 bg-gray-700 border border-blue-500 rounded px-2 py-0.5 text-white text-sm text-right focus:outline-none"
+                      className="w-28 bg-white dark:bg-gray-700 border border-blue-500 rounded px-2 py-0.5 text-gray-900 dark:text-white text-sm text-right focus:outline-none"
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
                       onBlur={() => commitEdit(monthKey)}
@@ -122,10 +122,10 @@ export default function YearlySummary({ year }: Props) {
                       onClick={() => startEdit(monthKey, actual)}
                       className="group flex items-center justify-end gap-1 w-full"
                     >
-                      <span className={actual !== null ? 'text-white' : 'text-gray-600'}>
+                      <span className={actual !== null ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-600'}>
                         {actual !== null ? formatCurrency(actual) : '未登録'}
                       </span>
-                      <span className="text-gray-600 text-xs opacity-0 group-hover:opacity-100 transition-opacity">✎</span>
+                      <span className="text-gray-400 dark:text-gray-600 text-xs opacity-0 group-hover:opacity-100 transition-opacity">✎</span>
                     </button>
                   )}
                 </td>
@@ -135,20 +135,20 @@ export default function YearlySummary({ year }: Props) {
                       {diff >= 0 ? '+' : ''}{formatCurrency(diff)}
                     </span>
                   ) : (
-                    <span className="text-gray-600">—</span>
+                    <span className="text-gray-400 dark:text-gray-600">—</span>
                   )}
                 </td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t border-gray-600 text-sm font-bold">
-              <td className="py-2 pr-2 text-gray-300">合計</td>
-              <td className="py-2 px-2 text-right text-gray-400">
+            <tr className="border-t border-gray-300 dark:border-gray-600 text-sm font-bold">
+              <td className="py-2 pr-2 text-gray-600 dark:text-gray-300">合計</td>
+              <td className="py-2 px-2 text-right text-gray-500 dark:text-gray-400">
                 {rows.reduce((s, r) => s + r.days, 0)}日
               </td>
-              <td className="py-2 px-2 text-right text-white">{formatCurrency(totalExpected)}</td>
-              <td className="py-2 px-2 text-right text-white">
+              <td className="py-2 px-2 text-right text-gray-900 dark:text-white">{formatCurrency(totalExpected)}</td>
+              <td className="py-2 px-2 text-right text-gray-900 dark:text-white">
                 {registeredCount > 0 ? formatCurrency(totalActual) : '—'}
               </td>
               <td className="py-2 pl-2 text-right">
@@ -162,7 +162,7 @@ export default function YearlySummary({ year }: Props) {
           </tfoot>
         </table>
       </div>
-      <p className="text-gray-600 text-xs mt-3">実振込額のセルをクリックして金額を入力 → Enterで確定</p>
+      <p className="text-gray-400 dark:text-gray-600 text-xs mt-3">実振込額のセルをクリックして金額を入力 → Enterで確定</p>
     </div>
   );
 }

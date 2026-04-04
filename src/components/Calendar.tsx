@@ -30,7 +30,7 @@ export default function Calendar({ year, month, selectedDate, onSelectDate }: Pr
         {DOW_LABELS.map((d, i) => (
           <div
             key={d}
-            className={`text-center text-sm font-medium py-1 ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-gray-400'}`}
+            className={`text-center text-sm font-medium py-1 ${i === 0 ? 'text-red-500 dark:text-red-400' : i === 6 ? 'text-blue-500 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}
           >
             {d}
           </div>

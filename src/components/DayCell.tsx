@@ -14,26 +14,26 @@ interface Props {
 
 export default function DayCell({ day, dateKey: _dateKey, entries, settings, isToday, isSelected, dayOfWeek, onClick }: Props) {
   if (day === null) {
-    return <div className="h-20 bg-gray-900 rounded" />;
+    return <div className="h-14 md:h-20 bg-gray-50 dark:bg-gray-900 rounded" />;
   }
 
   const totalPay = entries.reduce((sum, e) => sum + calcEntry(e, settings).pay + e.transportFee, 0);
   const hasEntries = entries.length > 0;
 
-  let textColor = 'text-gray-200';
-  if (dayOfWeek === 0) textColor = 'text-red-400';
-  if (dayOfWeek === 6) textColor = 'text-blue-400';
+  let textColor = 'text-gray-700 dark:text-gray-200';
+  if (dayOfWeek === 0) textColor = 'text-red-500 dark:text-red-400';
+  if (dayOfWeek === 6) textColor = 'text-blue-500 dark:text-blue-400';
 
-  let cellBg = 'bg-gray-800';
-  if (isToday) cellBg = 'bg-gray-700';
-  if (isSelected) cellBg = 'bg-blue-950';
+  let cellBg = 'bg-white dark:bg-gray-800';
+  if (isToday) cellBg = 'bg-gray-100 dark:bg-gray-700';
+  if (isSelected) cellBg = 'bg-blue-50 dark:bg-blue-950';
 
-  let border = 'border border-gray-700';
+  let border = 'border border-gray-200 dark:border-gray-700';
   if (isSelected) border = 'border-2 border-blue-500';
 
   return (
     <div
-      className={`h-14 md:h-20 rounded p-1 cursor-pointer ${cellBg} ${border} hover:bg-gray-700 transition-colors`}
+      className={`h-14 md:h-20 rounded p-1 cursor-pointer ${cellBg} ${border} hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`}
       onClick={onClick}
     >
       <div className={`text-xs md:text-sm font-medium ${textColor}`}>{day}</div>

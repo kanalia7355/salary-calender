@@ -4,9 +4,11 @@ import type { DefaultSettings } from '../types';
 
 interface Props {
   onClose: () => void;
+  theme: 'dark' | 'light';
+  onToggleTheme: () => void;
 }
 
-export default function SettingsPanel({ onClose }: Props) {
+export default function SettingsPanel({ onClose, theme, onToggleTheme }: Props) {
   const { settings, updateSettings } = useSalaryStore();
   const [form, setForm] = useState<DefaultSettings>({ ...settings });
 
@@ -17,38 +19,52 @@ export default function SettingsPanel({ onClose }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-white font-semibold">基本設定</h2>
+      <h2 className="text-gray-900 dark:text-white font-semibold">基本設定</h2>
 
       <div>
-        <label className="text-gray-400 text-xs mb-1 block">基本時給（円）</label>
+        <label className="text-gray-500 dark:text-gray-400 text-xs mb-1 block">基本時給（円）</label>
         <input
           type="number"
-          className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+          className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-blue-500"
           value={form.hourlyRate}
           onChange={(e) => setForm((f) => ({ ...f, hourlyRate: Number(e.target.value) }))}
         />
       </div>
 
       <div>
-        <label className="text-gray-400 text-xs mb-1 block">所定労働時間（h/日）</label>
+        <label className="text-gray-500 dark:text-gray-400 text-xs mb-1 block">所定労働時間（h/日）</label>
         <input
           type="number"
           step="0.5"
-          className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+          className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-blue-500"
           value={form.standardHours}
           onChange={(e) => setForm((f) => ({ ...f, standardHours: Number(e.target.value) }))}
         />
       </div>
 
       <div>
-        <label className="text-gray-400 text-xs mb-1 block">割増賃金倍率</label>
+        <label className="text-gray-500 dark:text-gray-400 text-xs mb-1 block">割増賃金倍率</label>
         <input
           type="number"
           step="0.01"
-          className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+          className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-blue-500"
           value={form.overtimeMultiplier}
           onChange={(e) => setForm((f) => ({ ...f, overtimeMultiplier: Number(e.target.value) }))}
         />
+      </div>
+
+      <div>
+        <label className="text-gray-500 dark:text-gray-400 text-xs mb-2 block">表示モード</label>
+        <button
+          type="button"
+          onClick={onToggleTheme}
+          className="w-full flex items-center justify-between bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-2"
+        >
+          <span className="text-gray-900 dark:text-white text-sm">
+            {theme === 'dark' ? '🌙 ダークモード' : '☀️ ライトモード'}
+          </span>
+          <span className="text-gray-500 dark:text-gray-400 text-xs">タップで切替</span>
+        </button>
       </div>
 
       <div className="flex gap-2 mt-4">
@@ -60,7 +76,7 @@ export default function SettingsPanel({ onClose }: Props) {
         </button>
         <button
           onClick={onClose}
-          className="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded font-medium"
+          className="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white py-2 rounded font-medium"
         >
           閉じる
         </button>

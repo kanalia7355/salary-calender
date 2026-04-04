@@ -20,7 +20,7 @@ export default function EntryList({ dateKey, onAdd, onEdit }: Props) {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-white font-semibold">{dateKey}</h2>
+        <h2 className="text-gray-900 dark:text-white font-semibold">{dateKey}</h2>
         <button
           onClick={onAdd}
           className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-3 py-1 rounded"
@@ -30,15 +30,15 @@ export default function EntryList({ dateKey, onAdd, onEdit }: Props) {
       </div>
 
       {dayEntries.length === 0 ? (
-        <p className="text-gray-500 text-sm">勤務記録なし</p>
+        <p className="text-gray-400 dark:text-gray-500 text-sm">勤務記録なし</p>
       ) : (
         <div className="space-y-2 flex-1 overflow-y-auto">
           {dayEntries.map((e) => {
             const r = calcEntry(e, settings);
             return (
-              <div key={e.id} className="bg-gray-800 rounded p-3">
+              <div key={e.id} className="bg-gray-50 dark:bg-gray-800 rounded p-3">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-white font-medium text-sm">{e.projectName}</span>
+                  <span className="text-gray-900 dark:text-white font-medium text-sm">{e.projectName}</span>
                   <div className="flex gap-1">
                     <button
                       onClick={() => onEdit(e)}
@@ -54,7 +54,7 @@ export default function EntryList({ dateKey, onAdd, onEdit }: Props) {
                     </button>
                   </div>
                 </div>
-                <div className="text-gray-400 text-xs">
+                <div className="text-gray-500 dark:text-gray-400 text-xs">
                   {e.startTime}〜{e.endTime}（休憩{e.breakMinutes}分）
                 </div>
                 <div className="text-green-400 text-xs mt-1">
@@ -67,10 +67,10 @@ export default function EntryList({ dateKey, onAdd, onEdit }: Props) {
       )}
 
       {dayEntries.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-700">
+        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">日次合計</span>
-            <span className="text-white font-bold">{formatCurrency(totalPay)}</span>
+            <span className="text-gray-500 dark:text-gray-400">日次合計</span>
+            <span className="text-gray-900 dark:text-white font-bold">{formatCurrency(totalPay)}</span>
           </div>
         </div>
       )}

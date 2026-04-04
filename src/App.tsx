@@ -10,11 +10,13 @@ import YearlySummary from './components/YearlySummary';
 import { useSalaryStore } from './store/useSalaryStore';
 import { supabase } from './lib/supabase';
 import type { WorkEntry } from './types';
+import { useTheme } from './hooks/useTheme';
 
 type PanelMode = 'empty' | 'list' | 'form' | 'settings';
 type Tab = 'calendar' | 'yearly';
 
 export default function App() {
+  const { theme, toggleTheme } = useTheme();
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const loadFromSupabase = useSalaryStore((s) => s.loadFromSupabase);
@@ -72,8 +74,8 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-gray-400">読み込み中...</div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-gray-500 dark:text-gray-400">読み込み中...</div>
       </div>
     );
   }
@@ -124,7 +126,7 @@ export default function App() {
   const periodLabel = tab === 'yearly' ? `${year}年` : `${year}年${month}月`;
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
       {loadError && (
         <div className="bg-red-800 text-red-100 text-sm px-4 py-3 flex items-center gap-2">
           <span>⚠</span>
@@ -145,14 +147,14 @@ export default function App() {
           <div className="flex items-center gap-2">
             <button
               onClick={prevPeriod}
-              className="bg-gray-700 hover:bg-gray-600 text-white w-8 h-8 rounded flex items-center justify-center shrink-0"
+              className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white w-8 h-8 rounded flex items-center justify-center shrink-0"
             >
               ◀
             </button>
             <h1 className="text-base md:text-xl font-bold whitespace-nowrap">{periodLabel}</h1>
             <button
               onClick={nextPeriod}
-              className="bg-gray-700 hover:bg-gray-600 text-white w-8 h-8 rounded flex items-center justify-center shrink-0"
+              className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white w-8 h-8 rounded flex items-center justify-center shrink-0"
             >
               ▶
             </button>
@@ -160,14 +162,14 @@ export default function App() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPanelMode('settings')}
-              className="flex items-center gap-1 bg-gray-700 hover:bg-gray-600 text-white px-2 md:px-3 py-1.5 rounded text-sm whitespace-nowrap"
+              className="flex items-center gap-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-2 md:px-3 py-1.5 rounded text-sm whitespace-nowrap"
             >
               ⚙ <span className="hidden sm:inline">基本設定</span>
             </button>
-            <span className="text-gray-400 text-xs hidden md:block truncate max-w-32">{session.user.email}</span>
+            <span className="text-gray-500 dark:text-gray-400 text-xs hidden md:block truncate max-w-32">{session.user.email}</span>
             <button
               onClick={handleLogout}
-              className="bg-gray-700 hover:bg-gray-600 text-white px-2 md:px-3 py-1.5 rounded text-sm whitespace-nowrap"
+              className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-2 md:px-3 py-1.5 rounded text-sm whitespace-nowrap"
             >
               ログアウト
             </button>
@@ -175,13 +177,13 @@ export default function App() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-4 border-b border-gray-700">
+        <div className="flex gap-1 mb-4 border-b border-gray-200 dark:border-gray-700">
           <button
             onClick={() => setTab('calendar')}
             className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
               tab === 'calendar'
-                ? 'bg-gray-800 text-white border-b-2 border-blue-500'
-                : 'text-gray-400 hover:text-gray-200'
+                ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-b-2 border-blue-500'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
             }`}
           >
             カレンダー
@@ -190,8 +192,8 @@ export default function App() {
             onClick={() => setTab('yearly')}
             className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
               tab === 'yearly'
-                ? 'bg-gray-800 text-white border-b-2 border-blue-500'
-                : 'text-gray-400 hover:text-gray-200'
+                ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-b-2 border-blue-500'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
             }`}
           >
             年次サマリー
@@ -216,9 +218,9 @@ export default function App() {
               </div>
 
               {/* Right Panel */}
-              <div className="w-full md:w-80 bg-gray-800 rounded-lg p-4 min-h-48 md:min-h-64 md:max-h-[calc(100vh-220px)] md:overflow-y-auto">
+              <div className="w-full md:w-80 bg-white dark:bg-gray-800 rounded-lg p-4 min-h-48 md:min-h-64 md:max-h-[calc(100vh-220px)] md:overflow-y-auto">
                 {panelMode === 'empty' && (
-                  <p className="text-gray-500 text-sm">日付をクリックして勤務を管理</p>
+                  <p className="text-gray-400 dark:text-gray-500 text-sm">日付をクリックして勤務を管理</p>
                 )}
                 {panelMode === 'list' && selectedDate && (
                   <EntryList
@@ -235,7 +237,7 @@ export default function App() {
                   />
                 )}
                 {panelMode === 'settings' && (
-                  <SettingsPanel onClose={() => setPanelMode('empty')} />
+                  <SettingsPanel onClose={() => setPanelMode('empty')} theme={theme} onToggleTheme={toggleTheme} />
                 )}
               </div>
             </div>
@@ -243,7 +245,7 @@ export default function App() {
         )}
 
         {tab === 'yearly' && (
-          <div className="bg-gray-800 rounded-lg p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
             <YearlySummary year={year} />
           </div>
         )}

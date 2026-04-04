@@ -10,10 +10,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-      <div className="bg-gray-800 rounded-xl p-10 flex flex-col items-center gap-6 w-80">
-        <h1 className="text-white text-2xl font-bold">給与管理カレンダー</h1>
-        <p className="text-gray-400 text-sm text-center">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-10 flex flex-col items-center gap-6 w-80">
+        <h1 className="text-gray-900 dark:text-white text-2xl font-bold">給与管理カレンダー</h1>
+        <p className="text-gray-500 dark:text-gray-400 text-sm text-center">
           フリーランス・副業向けの月次給与計算アプリ
         </p>
         <button
