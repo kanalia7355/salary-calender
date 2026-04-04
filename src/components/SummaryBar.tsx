@@ -14,7 +14,7 @@ export default function SummaryBar({ year, month }: Props) {
   let days = 0;
   let totalHours = 0;
   let totalPay = 0;
-  let totalTransport = 0;
+  let totalExtras = 0;
 
   Object.entries(entries).forEach(([key, dayEntries]) => {
     if (!key.startsWith(prefix)) return;
@@ -22,9 +22,9 @@ export default function SummaryBar({ year, month }: Props) {
     days++;
     dayEntries.forEach((e) => {
       const r = calcEntry(e, settings);
-      totalHours += r.workHours;
-      totalPay += r.pay;
-      totalTransport += r.transport;
+      totalHours  += r.workHours;
+      totalPay    += r.pay;
+      totalExtras += r.transport + r.otherFee;
     });
   });
 
@@ -33,7 +33,7 @@ export default function SummaryBar({ year, month }: Props) {
       <MetricCard label="勤務日数" value={`${days}日`} />
       <MetricCard label="総勤務時間" value={`${totalHours.toFixed(2)} h`} />
       <MetricCard label="給与合計" value={formatCurrency(totalPay)} />
-      <MetricCard label="交通費込み総計" value={formatCurrency(totalPay + totalTransport)} accent />
+      <MetricCard label="諸費用込み総計" value={formatCurrency(totalPay + totalExtras)} accent />
     </div>
   );
 }

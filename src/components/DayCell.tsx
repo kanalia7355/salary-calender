@@ -18,7 +18,10 @@ export default function DayCell({ day, dateKey: _dateKey, entries, settings, isT
     return <div className="h-14 md:h-20 bg-gray-50 dark:bg-gray-900 rounded" />;
   }
 
-  const totalPay = entries.reduce((sum, e) => sum + calcEntry(e, settings).pay + e.transportFee, 0);
+  const totalPay = entries.reduce((sum, e) => {
+    const r = calcEntry(e, settings);
+    return sum + r.pay + r.transport + r.otherFee;
+  }, 0);
   const hasEntries = entries.length > 0;
 
   let textColor = 'text-gray-700 dark:text-gray-200';

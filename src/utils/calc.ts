@@ -4,40 +4,40 @@ export function formatCurrency(amount: number): string {
   return `¥${amount.toLocaleString('ja-JP', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-// 深夜時間帯: 22:00 〜 翌4:00 を分で表すと 1320 〜 1680
+// 深夜時間帯: 22:00〜翌4:00 = 1320〜1680 分
 const DEEP_NIGHT_START = 22 * 60; // 1320
 const DEEP_NIGHT_END   = 28 * 60; // 1680
 
 export function calcEntry(entry: WorkEntry, def: DefaultSettings): CalcResult {
   const [sh, sm] = entry.startTime.split(':').map(Number);
   const [eh, em] = entry.endTime.split(':').map(Number);
-  const startMin = sh * 60 + sm;
-  const endMin   = eh * 60 + em;
+  const startMin      = sh * 60 + sm;
+  const endMin        = eh * 60 + em;
   const totalShiftMin = endMin - startMin;
-  const diffMin = totalShiftMin - entry.breakMinutes;
-  const workHours = diffMin <= 0 ? 0 : diffMin / 60;
+  const diffMin       = totalShiftMin - entry.breakMinutes;
+  const workHours     = diffMin <= 0 ? 0 : diffMin / 60;
 
-  const stdHours = entry.stdHours  ?? def.standardHours;
-  const rate     = entry.hourlyRate ?? def.hourlyRate;
+  const stdHours = entry.stdHours    ?? def.standardHours;
+  const rate     = entry.hourlyRate  ?? def.hourlyRate;
   const mult     = entry.overtimeMult ?? def.overtimeMultiplier;
 
-  // 深夜時間帯との重複（分）
+  // 深夜帯との生の重複（分）
   const rawDeepNightMin = Math.max(
     0,
     Math.min(endMin, DEEP_NIGHT_END) - Math.max(startMin, DEEP_NIGHT_START)
   );
-  // 休憩を深夜帯に比例配分して差し引く
-  const deepNightBreakMin = totalShiftMin > 0
-    ? entry.breakMinutes * (rawDeepNightMin / totalShiftMin)
-    : 0;
-  const deepNightHours = Math.max(0, rawDeepNightMin - deepNightBreakMin) / 60;
+
+  // 休憩は深夜外の時間に優先して充当し、余りだけ深夜帯から引く
+  const nonDeepNightShiftMin = totalShiftMin - rawDeepNightMin;
+  const deepNightBreakMin    = Math.max(0, entry.breakMinutes - nonDeepNightShiftMin);
+  const deepNightHours       = Math.max(0, rawDeepNightMin - deepNightBreakMin) / 60;
 
   // 深夜以外の労働時間で所定内/時間外を算出
   const nonDeepNightHours = Math.max(0, workHours - deepNightHours);
-  const regularHours  = Math.min(nonDeepNightHours, stdHours);
-  const overtimeHours = Math.max(0, nonDeepNightHours - stdHours);
+  const regularHours      = Math.min(nonDeepNightHours, stdHours);
+  const overtimeHours     = Math.max(0, nonDeepNightHours - stdHours);
 
-  // 給与: 所定内(日中) + 時間外(日中) + 深夜割増
+  // 給与: 所定内(日中) + 時間外(日中) × 割増 + 深夜時間 × 割増
   const pay = regularHours  * rate
             + overtimeHours * rate * mult
             + deepNightHours * rate * mult;
@@ -49,6 +49,7 @@ export function calcEntry(entry: WorkEntry, def: DefaultSettings): CalcResult {
     deepNightHours,
     pay,
     transport: entry.transportFee,
+    otherFee:  entry.otherFee ?? 0,
   };
 }
 
@@ -63,8 +64,9 @@ export function calcDay(entries: WorkEntry[], def: DefaultSettings): CalcResult 
         deepNightHours: acc.deepNightHours + r.deepNightHours,
         pay:            acc.pay            + r.pay,
         transport:      acc.transport      + r.transport,
+        otherFee:       acc.otherFee       + r.otherFee,
       };
     },
-    { workHours: 0, regularHours: 0, overtimeHours: 0, deepNightHours: 0, pay: 0, transport: 0 }
+    { workHours: 0, regularHours: 0, overtimeHours: 0, deepNightHours: 0, pay: 0, transport: 0, otherFee: 0 }
   );
 }

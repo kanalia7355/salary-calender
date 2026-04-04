@@ -20,7 +20,7 @@ export default function YearlySummary({ year }: Props) {
 
     let days = 0;
     let expectedPay = 0;
-    let expectedTransport = 0;
+    let expectedExtras = 0;
 
     Object.entries(entries).forEach(([dateKey, dayEntries]) => {
       if (!dateKey.startsWith(monthKey)) return;
@@ -28,12 +28,12 @@ export default function YearlySummary({ year }: Props) {
       days++;
       dayEntries.forEach((e) => {
         const r = calcEntry(e, settings);
-        expectedPay += r.pay;
-        expectedTransport += r.transport;
+        expectedPay    += r.pay;
+        expectedExtras += r.transport + r.otherFee;
       });
     });
 
-    const expected = expectedPay + expectedTransport;
+    const expected = expectedPay + expectedExtras;
     const actual = actualPayments[monthKey] ?? null;
     const diff = actual !== null ? actual - expected : null;
 

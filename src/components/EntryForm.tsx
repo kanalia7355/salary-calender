@@ -16,6 +16,7 @@ const EMPTY: Omit<WorkEntry, 'id'> = {
   endTime: '18:00',
   breakMinutes: 60,
   transportFee: 0,
+  otherFee: 0,
   hourlyRate: null,
   stdHours: null,
   overtimeMult: null,
@@ -158,6 +159,17 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
         </div>
       </div>
 
+      <div>
+        <label className={labelClass}>その他費用（円）</label>
+        <input
+          type="number"
+          className={inputClass}
+          placeholder="0"
+          value={form.otherFee === 0 ? '' : form.otherFee}
+          onChange={(e) => set('otherFee', e.target.value === '' ? 0 : Number(e.target.value))}
+        />
+      </div>
+
       <div className="text-gray-500 dark:text-gray-400 text-xs">賃金設定（空白=基本設定を使用）</div>
       <div className="flex gap-2">
         <div className="flex-1">
@@ -206,10 +218,6 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
             <span className="text-gray-900 dark:text-white">{preview.regularHours.toFixed(2)} h</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-yellow-400">残業</span>
-            <span className="text-yellow-400">{preview.overtimeHours.toFixed(2)} h</span>
-          </div>
-          <div className="flex justify-between text-sm">
             <span className="text-purple-400">深夜割増（22〜4時）</span>
             <span className="text-purple-400">{preview.deepNightHours.toFixed(2)} h</span>
           </div>
@@ -222,9 +230,15 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
               <span className="text-gray-500 dark:text-gray-400">交通費</span>
               <span className="text-gray-900 dark:text-white">{formatCurrency(preview.transport)}</span>
             </div>
+            {preview.otherFee > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500 dark:text-gray-400">その他費用</span>
+                <span className="text-gray-900 dark:text-white">{formatCurrency(preview.otherFee)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm font-bold">
               <span className="text-gray-600 dark:text-gray-300">合計</span>
-              <span className="text-blue-400">{formatCurrency(preview.pay + preview.transport)}</span>
+              <span className="text-blue-400">{formatCurrency(preview.pay + preview.transport + preview.otherFee)}</span>
             </div>
           </div>
         </div>

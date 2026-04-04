@@ -14,7 +14,7 @@ export default function EntryList({ dateKey, onAdd, onEdit }: Props) {
 
   const totalPay = dayEntries.reduce((sum, e) => {
     const r = calcEntry(e, settings);
-    return sum + r.pay + r.transport;
+    return sum + r.pay + r.transport + r.otherFee;
   }, 0);
 
   return (
@@ -58,7 +58,7 @@ export default function EntryList({ dateKey, onAdd, onEdit }: Props) {
                   {e.startTime}〜{e.endTime}（休憩{e.breakMinutes}分）
                 </div>
                 <div className="text-green-400 text-xs mt-1">
-                  {r.workHours.toFixed(2)}h / {formatCurrency(r.pay + r.transport)}
+                  {r.workHours.toFixed(2)}h / {formatCurrency(r.pay + r.transport + r.otherFee)}
                 </div>
               </div>
             );

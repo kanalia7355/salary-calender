@@ -5,6 +5,7 @@ export interface WorkEntry {
   endTime: string;
   breakMinutes: number;
   transportFee: number;
+  otherFee: number;
   hourlyRate: number | null;
   stdHours: number | null;
   overtimeMult: number | null;
@@ -20,9 +21,10 @@ export interface CalcResult {
   workHours: number;
   regularHours: number;
   overtimeHours: number;
-  deepNightHours: number;  // 22:00〜翌4:00 に重なる労働時間
+  deepNightHours: number;
   pay: number;
   transport: number;
+  otherFee: number;
 }
 
 export type EntriesMap = Record<string, WorkEntry[]>;
