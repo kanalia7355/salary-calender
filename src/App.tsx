@@ -5,6 +5,7 @@ import SummaryBar from './components/SummaryBar';
 import EntryList from './components/EntryList';
 import EntryForm from './components/EntryForm';
 import SettingsPanel from './components/SettingsPanel';
+import AccountPanel from './components/AccountPanel';
 import LoginPage from './components/LoginPage';
 import YearlySummary from './components/YearlySummary';
 import { useSalaryStore } from './store/useSalaryStore';
@@ -12,7 +13,7 @@ import { supabase } from './lib/supabase';
 import type { WorkEntry } from './types';
 import { useTheme } from './hooks/useTheme';
 
-type PanelMode = 'empty' | 'list' | 'form' | 'settings';
+type PanelMode = 'empty' | 'list' | 'form' | 'settings' | 'account';
 type Tab = 'calendar' | 'yearly';
 
 export default function App() {
@@ -166,12 +167,11 @@ export default function App() {
             >
               ⚙ <span className="hidden sm:inline">基本設定</span>
             </button>
-            <span className="text-gray-500 dark:text-gray-400 text-xs hidden md:block truncate max-w-32">{session.user.email}</span>
             <button
-              onClick={handleLogout}
-              className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-2 md:px-3 py-1.5 rounded text-sm whitespace-nowrap"
+              onClick={() => setPanelMode('account')}
+              className="flex items-center gap-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-2 md:px-3 py-1.5 rounded text-sm whitespace-nowrap"
             >
-              ログアウト
+              👤 <span className="hidden sm:inline">アカウント</span>
             </button>
           </div>
         </div>
@@ -238,6 +238,13 @@ export default function App() {
                 )}
                 {panelMode === 'settings' && (
                   <SettingsPanel onClose={() => setPanelMode('empty')} theme={theme} onToggleTheme={toggleTheme} />
+                )}
+                {panelMode === 'account' && (
+                  <AccountPanel
+                    email={session.user.email ?? ''}
+                    onLogout={handleLogout}
+                    onClose={() => setPanelMode('empty')}
+                  />
                 )}
               </div>
             </div>
