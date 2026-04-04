@@ -21,6 +21,60 @@ const EMPTY: Omit<WorkEntry, 'id'> = {
   overtimeMult: null,
 };
 
+// "HH:MM" ↔ { h, m } 変換
+const parseHM = (t: string) => {
+  const [h, m] = t.split(':').map(Number);
+  return { h: isNaN(h) ? 0 : h, m: isNaN(m) ? 0 : m };
+};
+const toTimeStr = (h: number, m: number) =>
+  `${String(Math.max(0, h)).padStart(2, '0')}:${String(Math.min(59, Math.max(0, m))).padStart(2, '0')}`;
+
+interface TimeInputProps {
+  label: string;
+  value: string;
+  maxHour: number;
+  onChange: (val: string) => void;
+  labelClass: string;
+  inputClass: string;
+}
+
+function TimeInput({ label, value, maxHour, onChange, labelClass, inputClass }: TimeInputProps) {
+  const { h, m } = parseHM(value);
+  return (
+    <div className="flex-1">
+      <label className={labelClass}>{label}</label>
+      <div className="flex items-center gap-1">
+        <input
+          type="number"
+          min={0}
+          max={maxHour}
+          className={`${inputClass} text-center px-1`}
+          value={h}
+          onChange={(e) => {
+            const newH = Math.min(maxHour, Math.max(0, Number(e.target.value) || 0));
+            onChange(toTimeStr(newH, m));
+          }}
+        />
+        <span className="text-gray-500 dark:text-gray-400 font-bold">:</span>
+        <input
+          type="number"
+          min={0}
+          max={59}
+          className={`${inputClass} text-center px-1`}
+          value={m}
+          onChange={(e) => {
+            const newM = Math.min(59, Math.max(0, Number(e.target.value) || 0));
+            onChange(toTimeStr(h, newM));
+          }}
+        />
+      </div>
+      {label.includes('終了') && h >= 24 && (
+        <p className="text-purple-400 text-xs mt-0.5">翌{h - 24}時{m > 0 ? m + '分' : ''}</p>
+      )}
+    </div>
+  );
+}
+
 export default function EntryForm({ dateKey, entry, onClose }: Props) {
   const { settings, addEntry, updateEntry } = useSalaryStore();
   const [form, setForm] = useState<Omit<WorkEntry, 'id'>>(entry ?? EMPTY);
@@ -64,24 +118,22 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
       </div>
 
       <div className="flex gap-2">
-        <div className="flex-1">
-          <label className={labelClass}>開始時刻</label>
-          <input
-            type="time"
-            className={inputClass}
-            value={form.startTime}
-            onChange={(e) => set('startTime', e.target.value)}
-          />
-        </div>
-        <div className="flex-1">
-          <label className={labelClass}>終了時刻</label>
-          <input
-            type="time"
-            className={inputClass}
-            value={form.endTime}
-            onChange={(e) => set('endTime', e.target.value)}
-          />
-        </div>
+        <TimeInput
+          label="開始時刻"
+          value={form.startTime}
+          maxHour={35}
+          onChange={(v) => set('startTime', v)}
+          labelClass={labelClass}
+          inputClass={inputClass}
+        />
+        <TimeInput
+          label="終了時刻（最大36時）"
+          value={form.endTime}
+          maxHour={36}
+          onChange={(v) => set('endTime', v)}
+          labelClass={labelClass}
+          inputClass={inputClass}
+        />
       </div>
 
       <div className="flex gap-2">
@@ -99,8 +151,9 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
           <input
             type="number"
             className={inputClass}
-            value={form.transportFee}
-            onChange={(e) => set('transportFee', Number(e.target.value))}
+            placeholder="0"
+            value={form.transportFee === 0 ? '' : form.transportFee}
+            onChange={(e) => set('transportFee', e.target.value === '' ? 0 : Number(e.target.value))}
           />
         </div>
       </div>

@@ -9,10 +9,11 @@ interface Props {
   isToday: boolean;
   isSelected: boolean;
   dayOfWeek: number;
+  hasOvernightFromPrev: boolean;
   onClick: () => void;
 }
 
-export default function DayCell({ day, dateKey: _dateKey, entries, settings, isToday, isSelected, dayOfWeek, onClick }: Props) {
+export default function DayCell({ day, dateKey: _dateKey, entries, settings, isToday, isSelected, dayOfWeek, hasOvernightFromPrev, onClick }: Props) {
   if (day === null) {
     return <div className="h-14 md:h-20 bg-gray-50 dark:bg-gray-900 rounded" />;
   }
@@ -37,14 +38,21 @@ export default function DayCell({ day, dateKey: _dateKey, entries, settings, isT
       onClick={onClick}
     >
       <div className={`text-xs md:text-sm font-medium ${textColor}`}>{day}</div>
-      {hasEntries && (
-        <div className="mt-0.5 md:mt-1 space-y-0.5">
-          <div className="bg-green-700 rounded px-1 py-0.5 text-xs text-green-100 truncate leading-tight">
-            {entries.length === 1 ? entries[0].projectName : `${entries.length}件`}
+      <div className="mt-0.5 md:mt-1 space-y-0.5">
+        {hasOvernightFromPrev && (
+          <div className="bg-purple-700 rounded px-1 py-0.5 text-xs text-purple-100 truncate leading-tight">
+            ←夜勤
           </div>
-          <div className="text-xs text-green-400 font-medium truncate">{formatCurrency(totalPay)}</div>
-        </div>
-      )}
+        )}
+        {hasEntries && (
+          <>
+            <div className="bg-green-700 rounded px-1 py-0.5 text-xs text-green-100 truncate leading-tight">
+              {entries.length === 1 ? entries[0].projectName : `${entries.length}件`}
+            </div>
+            <div className="text-xs text-green-400 font-medium truncate">{formatCurrency(totalPay)}</div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

@@ -46,6 +46,18 @@ export default function Calendar({ year, month, selectedDate, onSelectDate }: Pr
             today.getFullYear() === year &&
             today.getMonth() + 1 === month &&
             today.getDate() === day;
+
+          // 前日に夜勤（endTime >= 24:00）があるか検出
+          let hasOvernightFromPrev = false;
+          if (day !== null) {
+            const prevDate = new Date(year, month - 1, day - 1);
+            const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-${String(prevDate.getDate()).padStart(2, '0')}`;
+            hasOvernightFromPrev = (entries[prevKey] ?? []).some(e => {
+              const h = Number(e.endTime.split(':')[0]);
+              return h >= 24;
+            });
+          }
+
           return (
             <DayCell
               key={i}
@@ -56,6 +68,7 @@ export default function Calendar({ year, month, selectedDate, onSelectDate }: Pr
               isToday={isToday}
               isSelected={selectedDate === dateKey}
               dayOfWeek={i % 7}
+              hasOvernightFromPrev={hasOvernightFromPrev}
               onClick={() => day && onSelectDate(dateKey)}
             />
           );
