@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { WorkEntry, DefaultSettings, EntriesMap, ActualPaymentsMap } from '../types';
 import { supabase } from '../lib/supabase';
 
@@ -59,97 +60,110 @@ async function getCurrentUserId(): Promise<string | null> {
   return data.session?.user.id ?? null;
 }
 
-export const useSalaryStore = create<SalaryStore>()((set, get) => ({
-  entries: {},
-  settings: DEFAULT_SETTINGS,
-  actualPayments: {},
-  loadError: null,
+export const useSalaryStore = create<SalaryStore>()(
+  persist(
+    (set, get) => ({
+      entries: {},
+      settings: DEFAULT_SETTINGS,
+      actualPayments: {},
+      loadError: null,
 
-  addEntry: async (dateKey, entry) => {
-    const newEntries = {
-      ...get().entries,
-      [dateKey]: [...(get().entries[dateKey] ?? []), entry],
-    };
-    set({ entries: newEntries });
-    const userId = await getCurrentUserId();
-    if (userId) await upsertEntries(userId, dateKey, newEntries[dateKey]);
-  },
+      addEntry: async (dateKey, entry) => {
+        const newEntries = {
+          ...get().entries,
+          [dateKey]: [...(get().entries[dateKey] ?? []), entry],
+        };
+        set({ entries: newEntries });
+        const userId = await getCurrentUserId();
+        if (userId) await upsertEntries(userId, dateKey, newEntries[dateKey]);
+      },
 
-  updateEntry: async (dateKey, entry) => {
-    const newEntries = {
-      ...get().entries,
-      [dateKey]: (get().entries[dateKey] ?? []).map((e) =>
-        e.id === entry.id ? entry : e
-      ),
-    };
-    set({ entries: newEntries });
-    const userId = await getCurrentUserId();
-    if (userId) await upsertEntries(userId, dateKey, newEntries[dateKey]);
-  },
+      updateEntry: async (dateKey, entry) => {
+        const newEntries = {
+          ...get().entries,
+          [dateKey]: (get().entries[dateKey] ?? []).map((e) =>
+            e.id === entry.id ? entry : e
+          ),
+        };
+        set({ entries: newEntries });
+        const userId = await getCurrentUserId();
+        if (userId) await upsertEntries(userId, dateKey, newEntries[dateKey]);
+      },
 
-  deleteEntry: async (dateKey, id) => {
-    const remaining = (get().entries[dateKey] ?? []).filter((e) => e.id !== id);
-    const newEntries = { ...get().entries, [dateKey]: remaining };
-    set({ entries: newEntries });
-    const userId = await getCurrentUserId();
-    if (userId) {
-      if (remaining.length === 0) {
-        await deleteEntriesRow(userId, dateKey);
-      } else {
-        await upsertEntries(userId, dateKey, remaining);
-      }
+      deleteEntry: async (dateKey, id) => {
+        const remaining = (get().entries[dateKey] ?? []).filter((e) => e.id !== id);
+        const newEntries = { ...get().entries, [dateKey]: remaining };
+        set({ entries: newEntries });
+        const userId = await getCurrentUserId();
+        if (userId) {
+          if (remaining.length === 0) {
+            await deleteEntriesRow(userId, dateKey);
+          } else {
+            await upsertEntries(userId, dateKey, remaining);
+          }
+        }
+      },
+
+      updateSettings: async (settings) => {
+        set({ settings });
+        const userId = await getCurrentUserId();
+        if (userId) await upsertSettings(userId, settings);
+      },
+
+      setActualPayment: async (monthKey, amount) => {
+        set((s) => ({ actualPayments: { ...s.actualPayments, [monthKey]: amount } }));
+        const userId = await getCurrentUserId();
+        if (userId) await upsertActualPayment(userId, monthKey, amount);
+      },
+
+      clearStore: () => set({ entries: {}, actualPayments: {}, settings: DEFAULT_SETTINGS, loadError: null }),
+
+      loadFromSupabase: async (userId) => {
+        try {
+          const [entriesRes, settingsRes, paymentsRes] = await Promise.all([
+            supabase.from('entries').select('date_key, data').eq('user_id', userId),
+            supabase.from('settings').select('data').eq('user_id', userId).maybeSingle(),
+            supabase.from('actual_payments').select('month_key, amount').eq('user_id', userId),
+          ]);
+
+          if (entriesRes.error) {
+            console.error('load entries error:', entriesRes.error.message);
+            set({ loadError: 'Supabaseへの接続に失敗しました。環境変数を確認してください。' });
+            return;
+          }
+          if (settingsRes.error) console.error('load settings error:', settingsRes.error.message);
+          if (paymentsRes.error) console.error('load actual_payments error:', paymentsRes.error.message);
+
+          const entries: EntriesMap = {};
+          for (const row of entriesRes.data ?? []) {
+            entries[row.date_key] = row.data as WorkEntry[];
+          }
+
+          const actualPayments: ActualPaymentsMap = {};
+          for (const row of paymentsRes.data ?? []) {
+            actualPayments[row.month_key] = row.amount;
+          }
+
+          set({
+            entries,
+            actualPayments,
+            settings: (settingsRes.data?.data as DefaultSettings) ?? DEFAULT_SETTINGS,
+            loadError: null,
+          });
+        } catch (e) {
+          console.error('loadFromSupabase error:', e);
+          set({ loadError: 'Supabaseへの接続に失敗しました。環境変数を確認してください。' });
+        }
+      },
+    }),
+    {
+      name: 'salary-calendar-v1',
+      // loadError はlocalStorageに保存しない
+      partialize: (state) => ({
+        entries: state.entries,
+        settings: state.settings,
+        actualPayments: state.actualPayments,
+      }),
     }
-  },
-
-  updateSettings: async (settings) => {
-    set({ settings });
-    const userId = await getCurrentUserId();
-    if (userId) await upsertSettings(userId, settings);
-  },
-
-  setActualPayment: async (monthKey, amount) => {
-    set((s) => ({ actualPayments: { ...s.actualPayments, [monthKey]: amount } }));
-    const userId = await getCurrentUserId();
-    if (userId) await upsertActualPayment(userId, monthKey, amount);
-  },
-
-  clearStore: () => set({ entries: {}, actualPayments: {}, settings: DEFAULT_SETTINGS, loadError: null }),
-
-  loadFromSupabase: async (userId) => {
-    try {
-      const [entriesRes, settingsRes, paymentsRes] = await Promise.all([
-        supabase.from('entries').select('date_key, data').eq('user_id', userId),
-        supabase.from('settings').select('data').eq('user_id', userId).maybeSingle(),
-        supabase.from('actual_payments').select('month_key, amount').eq('user_id', userId),
-      ]);
-
-      if (entriesRes.error) {
-        console.error('load entries error:', entriesRes.error.message);
-        set({ loadError: 'Supabaseへの接続に失敗しました。環境変数を確認してください。' });
-        return;
-      }
-      if (settingsRes.error) console.error('load settings error:', settingsRes.error.message);
-      if (paymentsRes.error) console.error('load actual_payments error:', paymentsRes.error.message);
-
-      const entries: EntriesMap = {};
-      for (const row of entriesRes.data ?? []) {
-        entries[row.date_key] = row.data as WorkEntry[];
-      }
-
-      const actualPayments: ActualPaymentsMap = {};
-      for (const row of paymentsRes.data ?? []) {
-        actualPayments[row.month_key] = row.amount;
-      }
-
-      set({
-        entries,
-        actualPayments,
-        settings: (settingsRes.data?.data as DefaultSettings) ?? DEFAULT_SETTINGS,
-        loadError: null,
-      });
-    } catch (e) {
-      console.error('loadFromSupabase error:', e);
-      set({ loadError: 'Supabaseへの接続に失敗しました。環境変数を確認してください。' });
-    }
-  },
-}));
+  )
+);
