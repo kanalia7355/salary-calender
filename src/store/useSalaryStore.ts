@@ -8,6 +8,8 @@ interface SalaryStore {
   settings: DefaultSettings;
   actualPayments: ActualPaymentsMap;
   loadError: string | null;
+  userId: string | null;
+  setUserId: (id: string | null) => void;
   addEntry: (dateKey: string, entry: WorkEntry) => void;
   updateEntry: (dateKey: string, entry: WorkEntry) => void;
   deleteEntry: (dateKey: string, id: string) => void;
@@ -55,11 +57,6 @@ async function upsertActualPayment(userId: string, monthKey: string, amount: num
   if (error) console.error('upsertActualPayment error:', error.message);
 }
 
-async function getCurrentUserId(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  return data.session?.user.id ?? null;
-}
-
 export const useSalaryStore = create<SalaryStore>()(
   persist(
     (set, get) => ({
@@ -67,6 +64,9 @@ export const useSalaryStore = create<SalaryStore>()(
       settings: DEFAULT_SETTINGS,
       actualPayments: {},
       loadError: null,
+      userId: null,
+
+      setUserId: (id) => set({ userId: id }),
 
       addEntry: async (dateKey, entry) => {
         const newEntries = {
@@ -74,7 +74,7 @@ export const useSalaryStore = create<SalaryStore>()(
           [dateKey]: [...(get().entries[dateKey] ?? []), entry],
         };
         set({ entries: newEntries });
-        const userId = await getCurrentUserId();
+        const userId = get().userId;
         if (userId) await upsertEntries(userId, dateKey, newEntries[dateKey]);
       },
 
@@ -86,7 +86,7 @@ export const useSalaryStore = create<SalaryStore>()(
           ),
         };
         set({ entries: newEntries });
-        const userId = await getCurrentUserId();
+        const userId = get().userId;
         if (userId) await upsertEntries(userId, dateKey, newEntries[dateKey]);
       },
 
@@ -94,7 +94,7 @@ export const useSalaryStore = create<SalaryStore>()(
         const remaining = (get().entries[dateKey] ?? []).filter((e) => e.id !== id);
         const newEntries = { ...get().entries, [dateKey]: remaining };
         set({ entries: newEntries });
-        const userId = await getCurrentUserId();
+        const userId = get().userId;
         if (userId) {
           if (remaining.length === 0) {
             await deleteEntriesRow(userId, dateKey);
@@ -106,17 +106,17 @@ export const useSalaryStore = create<SalaryStore>()(
 
       updateSettings: async (settings) => {
         set({ settings });
-        const userId = await getCurrentUserId();
+        const userId = get().userId;
         if (userId) await upsertSettings(userId, settings);
       },
 
       setActualPayment: async (monthKey, amount) => {
         set((s) => ({ actualPayments: { ...s.actualPayments, [monthKey]: amount } }));
-        const userId = await getCurrentUserId();
+        const userId = get().userId;
         if (userId) await upsertActualPayment(userId, monthKey, amount);
       },
 
-      clearStore: () => set({ entries: {}, actualPayments: {}, settings: DEFAULT_SETTINGS, loadError: null }),
+      clearStore: () => set({ entries: {}, actualPayments: {}, settings: DEFAULT_SETTINGS, loadError: null, userId: null }),
 
       loadFromSupabase: async (userId) => {
         try {
@@ -163,6 +163,7 @@ export const useSalaryStore = create<SalaryStore>()(
         entries: state.entries,
         settings: state.settings,
         actualPayments: state.actualPayments,
+        // userId・loadError はlocalStorageに保存しない
       }),
     }
   )

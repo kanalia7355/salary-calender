@@ -23,6 +23,7 @@ export default function App() {
   const loadFromSupabase = useSalaryStore((s) => s.loadFromSupabase);
   const clearStore = useSalaryStore((s) => s.clearStore);
   const loadError = useSalaryStore((s) => s.loadError);
+  const setUserId = useSalaryStore((s) => s.setUserId);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -32,15 +33,17 @@ export default function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
+      setUserId(s?.user.id ?? null);
     });
     return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
     if (session?.user.id) {
+      setUserId(session.user.id);
       loadFromSupabase(session.user.id);
     }
-  }, [session?.user.id, loadFromSupabase]);
+  }, [session?.user.id, loadFromSupabase, setUserId]);
 
   // Supabase Realtimeで他端末の変更をリアルタイム受信
   useEffect(() => {

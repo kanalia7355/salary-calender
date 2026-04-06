@@ -14,12 +14,13 @@ export function calcEntry(entry: WorkEntry, def: DefaultSettings): CalcResult {
   const startMin      = sh * 60 + sm;
   const endMin        = eh * 60 + em;
   const totalShiftMin = endMin - startMin;
-  const diffMin       = totalShiftMin - entry.breakMinutes;
-  const workHours     = diffMin <= 0 ? 0 : diffMin / 60;
 
   const stdHours = entry.stdHours    ?? def.standardHours;
   const rate     = entry.hourlyRate  ?? def.hourlyRate;
   const mult     = entry.overtimeMult ?? def.overtimeMultiplier;
+
+  // すべて整数分で計算し、最後だけ時間に変換（浮動小数点誤差を防ぐ）
+  const workMin = Math.max(0, totalShiftMin - entry.breakMinutes);
 
   // 深夜帯との生の重複（分）
   const rawDeepNightMin = Math.max(
@@ -30,12 +31,19 @@ export function calcEntry(entry: WorkEntry, def: DefaultSettings): CalcResult {
   // 休憩は深夜外の時間に優先して充当し、余りだけ深夜帯から引く
   const nonDeepNightShiftMin = totalShiftMin - rawDeepNightMin;
   const deepNightBreakMin    = Math.max(0, entry.breakMinutes - nonDeepNightShiftMin);
-  const deepNightHours       = Math.max(0, rawDeepNightMin - deepNightBreakMin) / 60;
+  const deepNightMin         = Math.max(0, rawDeepNightMin - deepNightBreakMin);
 
-  // 深夜以外の労働時間で所定内/時間外を算出
-  const nonDeepNightHours = Math.max(0, workHours - deepNightHours);
-  const regularHours      = Math.min(nonDeepNightHours, stdHours);
-  const overtimeHours     = Math.max(0, nonDeepNightHours - stdHours);
+  // 深夜以外の労働分で所定内/時間外を算出（整数分で引き算するので誤差なし）
+  const nonDeepNightMin = Math.max(0, workMin - deepNightMin);
+  const stdMin          = Math.round(stdHours * 60);
+  const regularMin      = Math.min(nonDeepNightMin, stdMin);
+  const overtimeMin     = Math.max(0, nonDeepNightMin - stdMin);
+
+  // 時間に変換（表示・給与計算用）
+  const workHours      = workMin      / 60;
+  const regularHours   = regularMin   / 60;
+  const overtimeHours  = overtimeMin  / 60;
+  const deepNightHours = deepNightMin / 60;
 
   // 給与: 所定内(日中) + 時間外(日中) × 割増 + 深夜時間 × 割増
   const pay = regularHours  * rate
