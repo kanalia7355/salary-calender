@@ -45,9 +45,9 @@ export function calcEntry(entry: WorkEntry, def: DefaultSettings): CalcResult {
   const overtimeHours  = overtimeMin  / 60;
   const deepNightHours = deepNightMin / 60;
 
-  // 給与: 所定内(日中) + 時間外(日中) × 割増 + 深夜時間 × 割増
+  // 給与: 所定内(日中) + 時間外(日中、割増なし) + 深夜時間 × 割増
   const pay = regularHours  * rate
-            + overtimeHours * rate * mult
+            + overtimeHours * rate
             + deepNightHours * rate * mult;
 
   return {
