@@ -41,6 +41,27 @@ interface TimeInputProps {
 
 function TimeInput({ label, value, maxHour, onChange, labelClass, inputClass }: TimeInputProps) {
   const { h, m } = parseHM(value);
+  const [hStr, setHStr] = useState(String(h));
+  const [mStr, setMStr] = useState(String(m));
+
+  // 外部からvalueが変わったとき（エントリ読み込み時など）に同期
+  useEffect(() => {
+    setHStr(String(h));
+    setMStr(String(m));
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const commitH = (s: string) => {
+    const newH = Math.min(maxHour, Math.max(0, Number(s) || 0));
+    setHStr(String(newH));
+    onChange(toTimeStr(newH, m));
+  };
+
+  const commitM = (s: string) => {
+    const newM = Math.min(59, Math.max(0, Number(s) || 0));
+    setMStr(String(newM));
+    onChange(toTimeStr(h, newM));
+  };
+
   return (
     <div className="flex-1">
       <label className={labelClass}>{label}</label>
@@ -50,11 +71,9 @@ function TimeInput({ label, value, maxHour, onChange, labelClass, inputClass }: 
           min={0}
           max={maxHour}
           className={`${inputClass} text-center px-1`}
-          value={h}
-          onChange={(e) => {
-            const newH = Math.min(maxHour, Math.max(0, Number(e.target.value) || 0));
-            onChange(toTimeStr(newH, m));
-          }}
+          value={hStr}
+          onChange={(e) => setHStr(e.target.value)}
+          onBlur={(e) => commitH(e.target.value)}
         />
         <span className="text-gray-500 dark:text-gray-400 font-bold">:</span>
         <input
@@ -62,11 +81,9 @@ function TimeInput({ label, value, maxHour, onChange, labelClass, inputClass }: 
           min={0}
           max={59}
           className={`${inputClass} text-center px-1`}
-          value={m}
-          onChange={(e) => {
-            const newM = Math.min(59, Math.max(0, Number(e.target.value) || 0));
-            onChange(toTimeStr(h, newM));
-          }}
+          value={mStr}
+          onChange={(e) => setMStr(e.target.value)}
+          onBlur={(e) => commitM(e.target.value)}
         />
       </div>
       {label.includes('終了') && h >= 24 && (
