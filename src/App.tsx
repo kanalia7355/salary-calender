@@ -8,13 +8,14 @@ import SettingsPanel from './components/SettingsPanel';
 import AccountPanel from './components/AccountPanel';
 import LoginPage from './components/LoginPage';
 import YearlySummary from './components/YearlySummary';
+import AnalysisTab from './components/AnalysisTab';
 import { useSalaryStore } from './store/useSalaryStore';
 import { supabase } from './lib/supabase';
 import type { WorkEntry } from './types';
 import { useTheme } from './hooks/useTheme';
 
 type PanelMode = 'empty' | 'list' | 'form' | 'settings' | 'account';
-type Tab = 'calendar' | 'yearly';
+type Tab = 'calendar' | 'yearly' | 'analysis';
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -201,6 +202,16 @@ export default function App() {
           >
             年次サマリー
           </button>
+          <button
+            onClick={() => setTab('analysis')}
+            className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
+              tab === 'analysis'
+                ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-b-2 border-blue-500'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            }`}
+          >
+            分析
+          </button>
         </div>
 
         {tab === 'calendar' && (
@@ -258,6 +269,10 @@ export default function App() {
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
             <YearlySummary year={year} />
           </div>
+        )}
+
+        {tab === 'analysis' && (
+          <AnalysisTab year={year} />
         )}
       </div>
     </div>
