@@ -30,12 +30,13 @@ interface BarChartProps {
   title: string;
   subtitle: string;
   data: number[];
+  hasActual: boolean[];
   barFill: string;
   barFillDark: string;
   isDark: boolean;
 }
 
-function BarChart({ title, subtitle, data, barFill, barFillDark, isDark }: BarChartProps) {
+function BarChart({ title, subtitle, data, hasActual, barFill, barFillDark, isDark }: BarChartProps) {
   const maxVal = Math.max(...data, 0);
   const yMax = niceMax(maxVal);
   const Y_TICKS = 4;
@@ -52,7 +53,8 @@ function BarChart({ title, subtitle, data, barFill, barFillDark, isDark }: BarCh
   const slotW = chartW / 12;
   const barW = Math.max(slotW * 0.55, 8);
 
-  const fill = isDark ? barFillDark : barFill;
+  const fillBase    = isDark ? barFillDark : barFill;
+  const fillEstimate = isDark ? `${barFillDark}66` : `${barFill}55`; // 見込み値は薄く
   const textColor = isDark ? '#d1d5db' : '#374151';   // gray-300 / gray-700
   const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
   const axisColor = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
@@ -97,7 +99,7 @@ function BarChart({ title, subtitle, data, barFill, barFillDark, isDark }: BarCh
             <g key={i}>
               {/* バー */}
               {barH > 0 && (
-                <rect x={x} y={y} width={barW} height={barH} fill={fill} rx={3} opacity={0.9} />
+                <rect x={x} y={y} width={barW} height={barH} fill={hasActual[i] ? fillBase : fillEstimate} rx={3} />
               )}
               {barH === 0 && (
                 <rect x={x} y={PAD_T + chartH - 2} width={barW} height={2} fill={isDark ? '#374151' : '#e5e7eb'} rx={1} />
@@ -120,12 +122,22 @@ function BarChart({ title, subtitle, data, barFill, barFillDark, isDark }: BarCh
         })}
       </svg>
       <div className="text-right text-xs text-gray-400 dark:text-gray-600 -mt-1 pr-1">月</div>
+      <div className="flex items-center gap-4 mt-2">
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-sm" style={{ background: fillBase }} />
+          <span className="text-xs text-gray-500 dark:text-gray-400">実振込額ベース</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-sm" style={{ background: fillEstimate }} />
+          <span className="text-xs text-gray-500 dark:text-gray-400">計算見込み</span>
+        </div>
+      </div>
     </div>
   );
 }
 
 export default function AnalysisTab({ year }: Props) {
-  const { entries, settings } = useSalaryStore();
+  const { entries, settings, actualPayments } = useSalaryStore();
 
   // ダークモード検出
   const isDark = document.documentElement.classList.contains('dark');
@@ -147,15 +159,20 @@ export default function AnalysisTab({ year }: Props) {
       });
 
       const netPay = payTotal - withholdingTax;
-      return {
-        total:   netPay + transport + otherFee,
-        payOnly: netPay + otherFee,
-      };
-    });
-  }, [entries, settings, year]);
+      const actual = actualPayments[monthKey] ?? null;
 
-  const totalData   = monthlyData.map((d) => d.total);
-  const payOnlyData = monthlyData.map((d) => d.payOnly);
+      // 実振込額が登録済みの場合はそちらを優先。
+      // 交通費は入力済みの確定値なので実振込額から差し引いて給与分を算出する。
+      const total   = actual !== null ? actual : netPay + transport + otherFee;
+      const payOnly = actual !== null ? actual - transport : netPay + otherFee;
+
+      return { total, payOnly, hasActual: actual !== null };
+    });
+  }, [entries, settings, actualPayments, year]);
+
+  const totalData    = monthlyData.map((d) => d.total);
+  const payOnlyData  = monthlyData.map((d) => d.payOnly);
+  const hasActualArr = monthlyData.map((d) => d.hasActual);
 
   const yearTotal   = totalData.reduce((s, v) => s + v, 0);
   const yearPayOnly = payOnlyData.reduce((s, v) => s + v, 0);
@@ -181,16 +198,18 @@ export default function AnalysisTab({ year }: Props) {
       {/* グラフ2本 */}
       <BarChart
         title="月別収入（合計）"
-        subtitle="手取り給与 ＋ 交通費 ＋ その他費用"
+        subtitle="手取り給与 ＋ 交通費 ＋ その他費用　※実振込額登録済みの月はその値を使用"
         data={totalData}
+        hasActual={hasActualArr}
         barFill="#2563eb"
         barFillDark="#3b82f6"
         isDark={isDark}
       />
       <BarChart
         title="月別収入（交通費除く）"
-        subtitle="手取り給与 ＋ その他費用"
+        subtitle="手取り給与 ＋ その他費用　※実振込額登録済みの月は（実振込額 − 交通費）"
         data={payOnlyData}
+        hasActual={hasActualArr}
         barFill="#059669"
         barFillDark="#10b981"
         isDark={isDark}
