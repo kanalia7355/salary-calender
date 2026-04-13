@@ -129,9 +129,9 @@ export default function YearlySummary({ year }: Props) {
           <div className="text-xs text-gray-200 mb-0.5">実振込額合計 ({registeredCount}ヶ月)</div>
           <div className="text-sm md:text-lg font-bold text-white">{formatCurrency(totalActual)}</div>
         </div>
-        <div className={`rounded-lg p-3 col-span-2 md:col-span-1 ${totalActual - totalExpected >= 0 ? 'bg-green-800' : 'bg-red-900'}`}>
-          <div className="text-xs text-gray-700 dark:text-gray-300 mb-0.5">差額（実振込 − 見込み）</div>
-          <div className="text-sm md:text-lg font-bold text-white">
+        <div className={`rounded-lg p-3 col-span-2 md:col-span-1 ${totalActual - totalExpected >= 0 ? 'bg-green-100 dark:bg-green-800' : 'bg-red-100 dark:bg-red-900'}`}>
+          <div className={`text-xs mb-0.5 ${totalActual - totalExpected >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>差額（実振込 − 見込み）</div>
+          <div className={`text-sm md:text-lg font-bold ${totalActual - totalExpected >= 0 ? 'text-green-800 dark:text-white' : 'text-red-800 dark:text-white'}`}>
             {registeredCount > 0
               ? `${totalActual - totalExpected >= 0 ? '+' : ''}${formatCurrency(totalActual - totalExpected)}`
               : '—'}
