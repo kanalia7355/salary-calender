@@ -20,7 +20,7 @@ const EMPTY: Omit<WorkEntry, 'id'> = {
   hourlyRate: null,
   stdHours: null,
   overtimeMult: null,
-  withholdingTaxRate: null,
+  withholdingTax: 0,
 };
 
 // "HH:MM" ↔ { h, m } 変換
@@ -225,16 +225,13 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
       </div>
 
       <div>
-        <label className={labelClass}>源泉徴収税率（基本: {settings.withholdingTaxRate ?? 10.21}%）</label>
+        <label className={labelClass}>源泉徴収額（円）</label>
         <input
           type="number"
-          step="0.01"
-          min="0"
-          max="100"
           className={inputClass}
-          placeholder={String(settings.withholdingTaxRate ?? 10.21)}
-          value={form.withholdingTaxRate ?? ''}
-          onChange={(e) => set('withholdingTaxRate', parseOptNum(e.target.value))}
+          placeholder="0（源泉徴収なし）"
+          value={form.withholdingTax === 0 ? '' : form.withholdingTax}
+          onChange={(e) => set('withholdingTax', e.target.value === '' ? 0 : Number(e.target.value))}
         />
       </div>
 
@@ -262,14 +259,12 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
               <span className="text-gray-500 dark:text-gray-400">給与</span>
               <span className="text-gray-900 dark:text-white">{formatCurrency(preview.pay)}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-red-400">源泉徴収</span>
-              <span className="text-red-400">−{formatCurrency(preview.withholdingTax)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500 dark:text-gray-400">手取り給与</span>
-              <span className="text-gray-900 dark:text-white">{formatCurrency(preview.netPay)}</span>
-            </div>
+            {preview.withholdingTax > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-red-400">源泉徴収</span>
+                <span className="text-red-400">−{formatCurrency(preview.withholdingTax)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm">
               <span className="text-gray-500 dark:text-gray-400">交通費</span>
               <span className="text-gray-900 dark:text-white">{formatCurrency(preview.transport)}</span>
@@ -281,7 +276,7 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
               </div>
             )}
             <div className="flex justify-between text-sm font-bold">
-              <span className="text-gray-600 dark:text-gray-300">合計（手取り）</span>
+              <span className="text-gray-600 dark:text-gray-300">{preview.withholdingTax > 0 ? '合計（手取り）' : '合計'}</span>
               <span className="text-blue-400">{formatCurrency(preview.netPay + preview.transport + preview.otherFee)}</span>
             </div>
           </div>

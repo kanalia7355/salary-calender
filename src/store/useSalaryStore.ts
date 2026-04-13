@@ -23,7 +23,6 @@ const DEFAULT_SETTINGS: DefaultSettings = {
   hourlyRate: 1500,
   standardHours: 8,
   overtimeMultiplier: 1.25,
-  withholdingTaxRate: 10.21,
 };
 
 async function upsertEntries(userId: string, dateKey: string, data: WorkEntry[]) {

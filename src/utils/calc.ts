@@ -15,10 +15,9 @@ export function calcEntry(entry: WorkEntry, def: DefaultSettings): CalcResult {
   const endMin        = eh * 60 + em;
   const totalShiftMin = endMin - startMin;
 
-  const stdHours      = entry.stdHours    ?? def.standardHours;
-  const rate          = entry.hourlyRate  ?? def.hourlyRate;
-  const mult          = entry.overtimeMult ?? def.overtimeMultiplier;
-  const taxRate       = entry.withholdingTaxRate ?? (def.withholdingTaxRate ?? 10.21);
+  const stdHours = entry.stdHours    ?? def.standardHours;
+  const rate     = entry.hourlyRate  ?? def.hourlyRate;
+  const mult     = entry.overtimeMult ?? def.overtimeMultiplier;
 
   // すべて整数分で計算し、最後だけ時間に変換（浮動小数点誤差を防ぐ）
   const workMin = Math.max(0, totalShiftMin - entry.breakMinutes);
@@ -51,8 +50,7 @@ export function calcEntry(entry: WorkEntry, def: DefaultSettings): CalcResult {
             + overtimeHours * rate
             + deepNightHours * rate * mult;
 
-  // 源泉徴収: 給与に対して課税（円未満切り捨て）
-  const withholdingTax = Math.floor(pay * taxRate / 100);
+  const withholdingTax = entry.withholdingTax ?? 0;
   const netPay = pay - withholdingTax;
 
   return {
