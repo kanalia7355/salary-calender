@@ -247,12 +247,12 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
             <span className="text-gray-900 dark:text-white">{preview.regularHours.toFixed(2)} h</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-orange-300">残業</span>
-            <span className="text-orange-300">{preview.overtimeHours.toFixed(2)} h</span>
+            <span className="text-orange-600 dark:text-orange-300">残業</span>
+            <span className="text-orange-600 dark:text-orange-300">{preview.overtimeHours.toFixed(2)} h</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-purple-400">深夜割増（22〜4時）</span>
-            <span className="text-purple-400">{preview.deepNightHours.toFixed(2)} h</span>
+            <span className="text-purple-600 dark:text-purple-400">深夜割増（22〜4時）</span>
+            <span className="text-purple-600 dark:text-purple-400">{preview.deepNightHours.toFixed(2)} h</span>
           </div>
           <div className="border-t border-gray-200 dark:border-gray-700 pt-1 mt-1 space-y-1">
             <div className="flex justify-between text-sm">
@@ -261,8 +261,8 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
             </div>
             {preview.withholdingTax > 0 && (
               <div className="flex justify-between text-sm">
-                <span className="text-red-400">源泉徴収</span>
-                <span className="text-red-400">−{formatCurrency(preview.withholdingTax)}</span>
+                <span className="text-red-600 dark:text-red-400">源泉徴収</span>
+                <span className="text-red-600 dark:text-red-400">−{formatCurrency(preview.withholdingTax)}</span>
               </div>
             )}
             <div className="flex justify-between text-sm">
@@ -277,7 +277,7 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
             )}
             <div className="flex justify-between text-sm font-bold">
               <span className="text-gray-600 dark:text-gray-300">{preview.withholdingTax > 0 ? '合計（手取り）' : '合計'}</span>
-              <span className="text-blue-400">{formatCurrency(preview.netPay + preview.transport + preview.otherFee)}</span>
+              <span className="text-blue-600 dark:text-blue-400">{formatCurrency(preview.netPay + preview.transport + preview.otherFee)}</span>
             </div>
           </div>
         </div>

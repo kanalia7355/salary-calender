@@ -153,7 +153,7 @@ export default function YearlySummary({ year }: Props) {
           </thead>
           <tbody>
             {rows.map(({ label, monthKey, days, expected, actual, diff }) => (
-              <tr key={monthKey} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+              <tr key={monthKey} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors">
                 <td className="py-2 pr-2 text-gray-700 dark:text-gray-200 font-medium">{label}</td>
                 <td className="py-2 px-2 text-right text-gray-500 dark:text-gray-400">
                   {days > 0 ? `${days}日` : <span className="text-gray-400 dark:text-gray-600">—</span>}
@@ -186,7 +186,7 @@ export default function YearlySummary({ year }: Props) {
                 </td>
                 <td className="py-2 pl-2 text-right">
                   {diff !== null ? (
-                    <span className={diff >= 0 ? 'text-green-400' : 'text-red-400'}>
+                    <span className={diff >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
                       {diff >= 0 ? '+' : ''}{formatCurrency(diff)}
                     </span>
                   ) : (
@@ -208,7 +208,7 @@ export default function YearlySummary({ year }: Props) {
               </td>
               <td className="py-2 pl-2 text-right">
                 {registeredCount > 0 ? (
-                  <span className={totalActual - totalExpected >= 0 ? 'text-green-400' : 'text-red-400'}>
+                  <span className={totalActual - totalExpected >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
                     {totalActual - totalExpected >= 0 ? '+' : ''}{formatCurrency(totalActual - totalExpected)}
                   </span>
                 ) : '—'}

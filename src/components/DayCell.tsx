@@ -15,7 +15,7 @@ interface Props {
 
 export default function DayCell({ day, dateKey: _dateKey, entries, settings, isToday, isSelected, dayOfWeek, hasOvernightFromPrev, onClick }: Props) {
   if (day === null) {
-    return <div className="h-14 md:h-20 bg-gray-50 dark:bg-gray-900 rounded" />;
+    return <div className="h-14 md:h-20 bg-gray-100 dark:bg-gray-900 rounded" />;
   }
 
   const totalPay = entries.reduce((sum, e) => {
@@ -30,7 +30,7 @@ export default function DayCell({ day, dateKey: _dateKey, entries, settings, isT
 
   let cellBg = 'bg-white dark:bg-gray-800';
   if (isToday) cellBg = 'bg-gray-100 dark:bg-gray-700';
-  if (isSelected) cellBg = 'bg-blue-50 dark:bg-blue-950';
+  if (isSelected) cellBg = 'bg-blue-100 dark:bg-blue-950';
 
   let border = 'border border-gray-200 dark:border-gray-700';
   if (isSelected) border = 'border-2 border-blue-500';
@@ -52,7 +52,7 @@ export default function DayCell({ day, dateKey: _dateKey, entries, settings, isT
             <div className="bg-green-700 rounded px-1 py-0.5 text-xs text-green-100 truncate leading-tight">
               {entries.length === 1 ? entries[0].projectName : `${entries.length}件`}
             </div>
-            <div className="text-xs text-green-400 font-medium truncate">{formatCurrency(totalPay)}</div>
+            <div className="text-xs text-green-700 dark:text-green-400 font-medium truncate">{formatCurrency(totalPay)}</div>
           </>
         )}
       </div>

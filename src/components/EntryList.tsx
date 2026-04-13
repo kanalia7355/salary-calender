@@ -30,25 +30,25 @@ export default function EntryList({ dateKey, onAdd, onEdit }: Props) {
       </div>
 
       {dayEntries.length === 0 ? (
-        <p className="text-gray-400 dark:text-gray-500 text-sm">勤務記録なし</p>
+        <p className="text-gray-500 dark:text-gray-500 text-sm">勤務記録なし</p>
       ) : (
         <div className="space-y-2 flex-1 overflow-y-auto">
           {dayEntries.map((e) => {
             const r = calcEntry(e, settings);
             return (
-              <div key={e.id} className="bg-gray-50 dark:bg-gray-800 rounded p-3">
+              <div key={e.id} className="bg-gray-100 dark:bg-gray-800 rounded p-3">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-gray-900 dark:text-white font-medium text-sm">{e.projectName}</span>
                   <div className="flex gap-1">
                     <button
                       onClick={() => onEdit(e)}
-                      className="text-blue-400 hover:text-blue-300 text-xs px-2 py-0.5 border border-blue-400 rounded"
+                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 text-xs px-2 py-0.5 border border-blue-600 dark:border-blue-400 rounded"
                     >
                       編集
                     </button>
                     <button
                       onClick={() => deleteEntry(dateKey, e.id)}
-                      className="text-red-400 hover:text-red-300 text-xs px-2 py-0.5 border border-red-400 rounded"
+                      className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 text-xs px-2 py-0.5 border border-red-600 dark:border-red-400 rounded"
                     >
                       削除
                     </button>
@@ -57,7 +57,7 @@ export default function EntryList({ dateKey, onAdd, onEdit }: Props) {
                 <div className="text-gray-500 dark:text-gray-400 text-xs">
                   {e.startTime}〜{e.endTime}（休憩{e.breakMinutes}分）
                 </div>
-                <div className="text-green-400 text-xs mt-1">
+                <div className="text-green-700 dark:text-green-400 text-xs mt-1">
                   {r.workHours.toFixed(2)}h / {formatCurrency(r.pay + r.transport + r.otherFee)}
                 </div>
               </div>
