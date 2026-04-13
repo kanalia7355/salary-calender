@@ -9,12 +9,14 @@ export interface WorkEntry {
   hourlyRate: number | null;
   stdHours: number | null;
   overtimeMult: number | null;
+  withholdingTaxRate: number | null;
 }
 
 export interface DefaultSettings {
   hourlyRate: number;
   standardHours: number;
   overtimeMultiplier: number;
+  withholdingTaxRate: number;
 }
 
 export interface CalcResult {
@@ -25,6 +27,8 @@ export interface CalcResult {
   pay: number;
   transport: number;
   otherFee: number;
+  withholdingTax: number;
+  netPay: number;
 }
 
 export type EntriesMap = Record<string, WorkEntry[]>;

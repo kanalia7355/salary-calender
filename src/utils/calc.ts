@@ -15,9 +15,10 @@ export function calcEntry(entry: WorkEntry, def: DefaultSettings): CalcResult {
   const endMin        = eh * 60 + em;
   const totalShiftMin = endMin - startMin;
 
-  const stdHours = entry.stdHours    ?? def.standardHours;
-  const rate     = entry.hourlyRate  ?? def.hourlyRate;
-  const mult     = entry.overtimeMult ?? def.overtimeMultiplier;
+  const stdHours      = entry.stdHours    ?? def.standardHours;
+  const rate          = entry.hourlyRate  ?? def.hourlyRate;
+  const mult          = entry.overtimeMult ?? def.overtimeMultiplier;
+  const taxRate       = entry.withholdingTaxRate ?? (def.withholdingTaxRate ?? 10.21);
 
   // すべて整数分で計算し、最後だけ時間に変換（浮動小数点誤差を防ぐ）
   const workMin = Math.max(0, totalShiftMin - entry.breakMinutes);
@@ -50,6 +51,10 @@ export function calcEntry(entry: WorkEntry, def: DefaultSettings): CalcResult {
             + overtimeHours * rate
             + deepNightHours * rate * mult;
 
+  // 源泉徴収: 給与に対して課税（円未満切り捨て）
+  const withholdingTax = Math.floor(pay * taxRate / 100);
+  const netPay = pay - withholdingTax;
+
   return {
     workHours,
     regularHours,
@@ -58,6 +63,8 @@ export function calcEntry(entry: WorkEntry, def: DefaultSettings): CalcResult {
     pay,
     transport: entry.transportFee,
     otherFee:  entry.otherFee ?? 0,
+    withholdingTax,
+    netPay,
   };
 }
 
@@ -70,11 +77,13 @@ export function calcDay(entries: WorkEntry[], def: DefaultSettings): CalcResult 
         regularHours:   acc.regularHours   + r.regularHours,
         overtimeHours:  acc.overtimeHours  + r.overtimeHours,
         deepNightHours: acc.deepNightHours + r.deepNightHours,
-        pay:            acc.pay            + r.pay,
-        transport:      acc.transport      + r.transport,
-        otherFee:       acc.otherFee       + r.otherFee,
+        pay:             acc.pay             + r.pay,
+        transport:       acc.transport       + r.transport,
+        otherFee:        acc.otherFee        + r.otherFee,
+        withholdingTax:  acc.withholdingTax  + r.withholdingTax,
+        netPay:          acc.netPay          + r.netPay,
       };
     },
-    { workHours: 0, regularHours: 0, overtimeHours: 0, deepNightHours: 0, pay: 0, transport: 0, otherFee: 0 }
+    { workHours: 0, regularHours: 0, overtimeHours: 0, deepNightHours: 0, pay: 0, transport: 0, otherFee: 0, withholdingTax: 0, netPay: 0 }
   );
 }

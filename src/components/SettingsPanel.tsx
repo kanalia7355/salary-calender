@@ -54,6 +54,20 @@ export default function SettingsPanel({ onClose, theme, onToggleTheme }: Props) 
       </div>
 
       <div>
+        <label className="text-gray-500 dark:text-gray-400 text-xs mb-1 block">源泉徴収税率（%）</label>
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          max="100"
+          className="w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-blue-500"
+          value={form.withholdingTaxRate ?? 10.21}
+          onChange={(e) => setForm((f) => ({ ...f, withholdingTaxRate: Number(e.target.value) }))}
+        />
+        <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">通常 10.21%（報酬が100万円超の場合は 20.42%）</p>
+      </div>
+
+      <div>
         <label className="text-gray-500 dark:text-gray-400 text-xs mb-2 block">表示モード</label>
         <button
           type="button"

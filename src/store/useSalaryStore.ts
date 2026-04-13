@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS: DefaultSettings = {
   hourlyRate: 1500,
   standardHours: 8,
   overtimeMultiplier: 1.25,
+  withholdingTaxRate: 10.21,
 };
 
 async function upsertEntries(userId: string, dateKey: string, data: WorkEntry[]) {
@@ -147,7 +148,9 @@ export const useSalaryStore = create<SalaryStore>()(
           set({
             entries,
             actualPayments,
-            settings: (settingsRes.data?.data as DefaultSettings) ?? DEFAULT_SETTINGS,
+            settings: settingsRes.data?.data
+              ? { ...DEFAULT_SETTINGS, ...(settingsRes.data.data as DefaultSettings) }
+              : DEFAULT_SETTINGS,
             loadError: null,
           });
         } catch (e) {

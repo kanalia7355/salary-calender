@@ -20,6 +20,7 @@ const EMPTY: Omit<WorkEntry, 'id'> = {
   hourlyRate: null,
   stdHours: null,
   overtimeMult: null,
+  withholdingTaxRate: null,
 };
 
 // "HH:MM" ↔ { h, m } 変換
@@ -223,6 +224,20 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
         />
       </div>
 
+      <div>
+        <label className={labelClass}>源泉徴収税率（基本: {settings.withholdingTaxRate ?? 10.21}%）</label>
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          max="100"
+          className={inputClass}
+          placeholder={String(settings.withholdingTaxRate ?? 10.21)}
+          value={form.withholdingTaxRate ?? ''}
+          onChange={(e) => set('withholdingTaxRate', parseOptNum(e.target.value))}
+        />
+      </div>
+
       {preview && (
         <div className="bg-gray-50 dark:bg-gray-800 rounded p-3 space-y-1">
           <div className="text-gray-500 dark:text-gray-400 text-xs font-medium mb-2">計算プレビュー</div>
@@ -248,6 +263,14 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
               <span className="text-gray-900 dark:text-white">{formatCurrency(preview.pay)}</span>
             </div>
             <div className="flex justify-between text-sm">
+              <span className="text-red-400">源泉徴収</span>
+              <span className="text-red-400">−{formatCurrency(preview.withholdingTax)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500 dark:text-gray-400">手取り給与</span>
+              <span className="text-gray-900 dark:text-white">{formatCurrency(preview.netPay)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
               <span className="text-gray-500 dark:text-gray-400">交通費</span>
               <span className="text-gray-900 dark:text-white">{formatCurrency(preview.transport)}</span>
             </div>
@@ -258,8 +281,8 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
               </div>
             )}
             <div className="flex justify-between text-sm font-bold">
-              <span className="text-gray-600 dark:text-gray-300">合計</span>
-              <span className="text-blue-400">{formatCurrency(preview.pay + preview.transport + preview.otherFee)}</span>
+              <span className="text-gray-600 dark:text-gray-300">合計（手取り）</span>
+              <span className="text-blue-400">{formatCurrency(preview.netPay + preview.transport + preview.otherFee)}</span>
             </div>
           </div>
         </div>
