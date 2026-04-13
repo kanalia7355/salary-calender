@@ -14,7 +14,8 @@ import { supabase } from './lib/supabase';
 import type { WorkEntry } from './types';
 import { useTheme } from './hooks/useTheme';
 
-type PanelMode = 'empty' | 'list' | 'form' | 'settings' | 'account';
+type PanelMode = 'empty' | 'list' | 'form';
+type ModalMode = 'settings' | 'account' | null;
 type Tab = 'calendar' | 'yearly' | 'analysis';
 
 export default function App() {
@@ -75,6 +76,7 @@ export default function App() {
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [panelMode, setPanelMode] = useState<PanelMode>('empty');
+  const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [editingEntry, setEditingEntry] = useState<WorkEntry | null>(null);
 
   if (authLoading) {
@@ -132,6 +134,30 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+      {/* グローバルモーダル（基本設定・アカウント） */}
+      {modalMode !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+          onClick={() => setModalMode(null)}
+        >
+          <div
+            className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-xl p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {modalMode === 'settings' && (
+              <SettingsPanel onClose={() => setModalMode(null)} theme={theme} onToggleTheme={toggleTheme} />
+            )}
+            {modalMode === 'account' && (
+              <AccountPanel
+                email={session.user.email ?? ''}
+                onLogout={handleLogout}
+                onClose={() => setModalMode(null)}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
       {loadError && (
         <div className="bg-red-800 text-red-100 text-sm px-4 py-3 flex items-center gap-2">
           <span>⚠</span>
@@ -166,13 +192,13 @@ export default function App() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setPanelMode('settings')}
+              onClick={() => setModalMode('settings')}
               className="flex items-center gap-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-2 md:px-3 py-1.5 rounded text-sm whitespace-nowrap"
             >
               ⚙ <span className="hidden sm:inline">基本設定</span>
             </button>
             <button
-              onClick={() => setPanelMode('account')}
+              onClick={() => setModalMode('account')}
               className="flex items-center gap-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-2 md:px-3 py-1.5 rounded text-sm whitespace-nowrap"
             >
               👤 <span className="hidden sm:inline">アカウント</span>
@@ -248,16 +274,6 @@ export default function App() {
                     dateKey={selectedDate}
                     entry={editingEntry}
                     onClose={handleFormClose}
-                  />
-                )}
-                {panelMode === 'settings' && (
-                  <SettingsPanel onClose={() => setPanelMode('empty')} theme={theme} onToggleTheme={toggleTheme} />
-                )}
-                {panelMode === 'account' && (
-                  <AccountPanel
-                    email={session.user.email ?? ''}
-                    onLogout={handleLogout}
-                    onClose={() => setPanelMode('empty')}
                   />
                 )}
               </div>
