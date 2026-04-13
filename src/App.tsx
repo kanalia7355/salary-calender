@@ -134,16 +134,22 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
-      {/* グローバルモーダル（基本設定・アカウント） */}
+      {/* 右ドロワー（基本設定・アカウント） */}
+      {/* 背景オーバーレイ */}
       {modalMode !== null && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+          className="fixed inset-0 z-40 bg-black/20"
           onClick={() => setModalMode(null)}
-        >
-          <div
-            className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-xl p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+        />
+      )}
+      {/* ドロワー本体 */}
+      <div
+        className={`fixed top-0 right-0 z-50 h-full w-80 bg-white dark:bg-gray-800 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${
+          modalMode !== null ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        {modalMode !== null && (
+          <div className="flex-1 overflow-y-auto p-6">
             {modalMode === 'settings' && (
               <SettingsPanel onClose={() => setModalMode(null)} theme={theme} onToggleTheme={toggleTheme} />
             )}
@@ -155,8 +161,8 @@ export default function App() {
               />
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {loadError && (
         <div className="bg-red-800 text-red-100 text-sm px-4 py-3 flex items-center gap-2">
