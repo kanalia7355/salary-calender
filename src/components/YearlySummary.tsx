@@ -8,9 +8,13 @@ interface Props {
 
 const MONTH_LABELS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
 
+function escapeCsv(value: string | number): string {
+  const s = String(value);
+  return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
 export default function YearlySummary({ year }: Props) {
   const { entries, settings, actualPayments, setActualPayment } = useSalaryStore();
-  // editingMonth: 編集中の月キー ("YYYY-MM") or null
   const [editingMonth, setEditingMonth] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
 
@@ -19,8 +23,10 @@ export default function YearlySummary({ year }: Props) {
     const monthKey = `${year}-${String(month).padStart(2, '0')}`;
 
     let days = 0;
-    let expectedPay = 0;
-    let expectedExtras = 0;
+    let payTotal = 0;        // 総支給（交通費除く）
+    let withholdingTax = 0;  // 源泉徴収合計
+    let transport = 0;       // 交通費合計
+    let otherFee = 0;        // その他費用合計
 
     Object.entries(entries).forEach(([dateKey, dayEntries]) => {
       if (!dateKey.startsWith(monthKey)) return;
@@ -28,21 +34,26 @@ export default function YearlySummary({ year }: Props) {
       days++;
       dayEntries.forEach((e) => {
         const r = calcEntry(e, settings);
-        expectedPay    += r.pay;
-        expectedExtras += r.transport + r.otherFee;
+        payTotal       += r.pay;
+        withholdingTax += r.withholdingTax;
+        transport      += r.transport;
+        otherFee       += r.otherFee;
       });
     });
 
-    const expected = expectedPay + expectedExtras;
+    const netPay  = payTotal - withholdingTax;          // 手取り給与（交通費除く）
+    const expected = netPay + transport + otherFee;     // 給与見込み合計
     const actual = actualPayments[monthKey] ?? null;
     const diff = actual !== null ? actual - expected : null;
 
-    return { label, monthKey, days, expected, actual, diff };
+    return { label, monthKey, days, payTotal, withholdingTax, netPay, transport, otherFee, expected, actual, diff };
   });
 
-  const totalExpected = rows.reduce((s, r) => s + r.expected, 0);
-  const totalActual = rows.reduce((s, r) => s + (r.actual ?? 0), 0);
-  const registeredCount = rows.filter((r) => r.actual !== null).length;
+  const totalExpected      = rows.reduce((s, r) => s + r.expected, 0);
+  const totalActual        = rows.reduce((s, r) => s + (r.actual ?? 0), 0);
+  const totalPayOnly       = rows.reduce((s, r) => s + r.payTotal, 0);
+  const totalWithholding   = rows.reduce((s, r) => s + r.withholdingTax, 0);
+  const registeredCount    = rows.filter((r) => r.actual !== null).length;
 
   const startEdit = (monthKey: string, current: number | null) => {
     setEditingMonth(monthKey);
@@ -60,6 +71,50 @@ export default function YearlySummary({ year }: Props) {
   const handleKeyDown = (e: React.KeyboardEvent, monthKey: string) => {
     if (e.key === 'Enter') commitEdit(monthKey);
     if (e.key === 'Escape') setEditingMonth(null);
+  };
+
+  const exportCsv = () => {
+    const headers = ['月', '勤務日数', '総支給額（交通費除く）', '源泉徴収額', '手取り給与（交通費除く）', '交通費', 'その他費用', '給与見込み合計', '実振込額', '差額'];
+    const dataRows = rows.map((r) => [
+      r.label,
+      r.days,
+      Math.round(r.payTotal),
+      Math.round(r.withholdingTax),
+      Math.round(r.netPay),
+      Math.round(r.transport),
+      Math.round(r.otherFee),
+      Math.round(r.expected),
+      r.actual ?? '',
+      r.diff !== null ? Math.round(r.diff) : '',
+    ]);
+    const totalRow = [
+      '合計',
+      rows.reduce((s, r) => s + r.days, 0),
+      Math.round(totalPayOnly),
+      Math.round(totalWithholding),
+      Math.round(totalPayOnly - totalWithholding),
+      Math.round(rows.reduce((s, r) => s + r.transport, 0)),
+      Math.round(rows.reduce((s, r) => s + r.otherFee, 0)),
+      Math.round(totalExpected),
+      registeredCount > 0 ? Math.round(totalActual) : '',
+      registeredCount > 0 ? Math.round(totalActual - totalExpected) : '',
+    ];
+
+    const csvLines = [
+      `# ${year}年 給与サマリー`,
+      headers.map(escapeCsv).join(','),
+      ...dataRows.map((row) => row.map(escapeCsv).join(',')),
+      totalRow.map(escapeCsv).join(','),
+    ];
+
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + csvLines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `salary_${year}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -162,7 +217,19 @@ export default function YearlySummary({ year }: Props) {
           </tfoot>
         </table>
       </div>
-      <p className="text-gray-400 dark:text-gray-600 text-xs mt-3">実振込額のセルをクリックして金額を入力 → Enterで確定</p>
+
+      <div className="flex items-center justify-between mt-3">
+        <p className="text-gray-400 dark:text-gray-600 text-xs">実振込額のセルをクリックして金額を入力 → Enterで確定</p>
+        <button
+          onClick={exportCsv}
+          className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs px-3 py-1.5 rounded font-medium transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+          CSV エクスポート
+        </button>
+      </div>
     </div>
   );
 }
