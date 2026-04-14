@@ -10,10 +10,7 @@ interface Props {
 
 export default function SettingsPanel({ onClose, theme, onToggleTheme }: Props) {
   const { settings, updateSettings } = useSalaryStore();
-  const [form, setForm] = useState<DefaultSettings>({
-    showTagTab: false,
-    ...settings,
-  });
+  const [form, setForm] = useState<DefaultSettings>({ ...settings });
 
   const handleSave = () => {
     updateSettings(form);
