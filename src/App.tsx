@@ -232,16 +232,6 @@ export default function App() {
             カレンダー
           </button>
           <button
-            onClick={() => setTab('yearly')}
-            className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
-              tab === 'yearly'
-                ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-b-2 border-blue-500'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-            }`}
-          >
-            年次サマリー
-          </button>
-          <button
             onClick={() => setTab('analysis')}
             className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
               tab === 'analysis'
@@ -263,6 +253,16 @@ export default function App() {
               タグ別集計
             </button>
           )}
+          <button
+            onClick={() => setTab('yearly')}
+            className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
+              tab === 'yearly'
+                ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-b-2 border-blue-500'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            }`}
+          >
+            年次サマリー
+          </button>
         </div>
 
         {tab === 'calendar' && (
