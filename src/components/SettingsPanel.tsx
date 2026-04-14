@@ -10,7 +10,10 @@ interface Props {
 
 export default function SettingsPanel({ onClose, theme, onToggleTheme }: Props) {
   const { settings, updateSettings } = useSalaryStore();
-  const [form, setForm] = useState<DefaultSettings>({ ...settings });
+  const [form, setForm] = useState<DefaultSettings>({
+    showTagTab: false,
+    ...settings,
+  });
 
   const handleSave = () => {
     updateSettings(form);
@@ -54,7 +57,29 @@ export default function SettingsPanel({ onClose, theme, onToggleTheme }: Props) 
       </div>
 
 
-<div>
+      <div>
+        <label className="text-gray-500 dark:text-gray-400 text-xs mb-2 block">タブ表示</label>
+        <button
+          type="button"
+          onClick={() => setForm((f) => ({ ...f, showTagTab: !f.showTagTab }))}
+          className="w-full flex items-center justify-between bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-2"
+        >
+          <span className="text-gray-900 dark:text-white text-sm">タグ別集計タブ</span>
+          <span
+            className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors ${
+              form.showTagTab ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-500'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 mt-0.5 rounded-full bg-white shadow transition-transform ${
+                form.showTagTab ? 'translate-x-4' : 'translate-x-0.5'
+              }`}
+            />
+          </span>
+        </button>
+      </div>
+
+      <div>
         <label className="text-gray-500 dark:text-gray-400 text-xs mb-2 block">表示モード</label>
         <button
           type="button"

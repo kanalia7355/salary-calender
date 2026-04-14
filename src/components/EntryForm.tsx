@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import type { WorkEntry, CalcResult } from '../types';
 import { useSalaryStore } from '../store/useSalaryStore';
@@ -21,6 +21,7 @@ const EMPTY: Omit<WorkEntry, 'id'> = {
   stdHours: null,
   overtimeMult: null,
   withholdingTax: 0,
+  tags: [],
 };
 
 // "HH:MM" ↔ { h, m } 変換
@@ -95,9 +96,30 @@ function TimeInput({ label, value, maxHour, onChange, labelClass, inputClass }: 
 }
 
 export default function EntryForm({ dateKey, entry, onClose }: Props) {
-  const { settings, addEntry, updateEntry } = useSalaryStore();
-  const [form, setForm] = useState<Omit<WorkEntry, 'id'>>(entry ?? EMPTY);
+  const { settings, addEntry, updateEntry, entries } = useSalaryStore();
+  const [form, setForm] = useState<Omit<WorkEntry, 'id'>>({
+    ...EMPTY,
+    ...(entry ?? {}),
+    tags: entry?.tags ?? [],
+  });
   const [preview, setPreview] = useState<CalcResult | null>(null);
+  const [tagInput, setTagInput] = useState('');
+
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    Object.values(entries).forEach((dayEntries) =>
+      dayEntries.forEach((e) => (e.tags ?? []).forEach((t) => tagSet.add(t)))
+    );
+    return Array.from(tagSet).sort((a, b) => a.localeCompare(b, 'ja'));
+  }, [entries]);
+
+  const addTag = (tag: string) => {
+    const t = tag.trim();
+    if (!t || (form.tags ?? []).includes(t)) return;
+    set('tags', [...(form.tags ?? []), t]);
+  };
+  const removeTag = (tag: string) =>
+    set('tags', (form.tags ?? []).filter((t) => t !== tag));
 
   useEffect(() => {
     const e: WorkEntry = { id: entry?.id ?? '', ...form };
@@ -134,6 +156,67 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
           value={form.projectName}
           onChange={(e) => set('projectName', e.target.value)}
         />
+      </div>
+
+      {/* タグ */}
+      <div>
+        <label className={labelClass}>タグ</label>
+        {/* 選択済みタグ */}
+        <div className="flex flex-wrap gap-1 mb-1.5 min-h-[24px]">
+          {(form.tags ?? []).length === 0 ? (
+            <span className="text-gray-400 dark:text-gray-500 text-xs py-0.5">タグなし</span>
+          ) : (
+            (form.tags ?? []).map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-1 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 text-xs px-2 py-0.5 rounded-full"
+              >
+                {tag}
+                <button type="button" onClick={() => removeTag(tag)} className="leading-none hover:text-blue-600 dark:hover:text-blue-400">×</button>
+              </span>
+            ))
+          )}
+        </div>
+        {/* 既存タグから選択 */}
+        {allTags.filter((t) => !(form.tags ?? []).includes(t)).length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-1.5">
+            {allTags
+              .filter((t) => !(form.tags ?? []).includes(t))
+              .map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => addTag(tag)}
+                  className="text-xs px-2 py-0.5 rounded-full border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  + {tag}
+                </button>
+              ))}
+          </div>
+        )}
+        {/* 新規タグ入力 */}
+        <div className="flex gap-1">
+          <input
+            className={`${inputClass} flex-1`}
+            placeholder="新規タグを入力してEnter"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addTag(tagInput);
+                setTagInput('');
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => { addTag(tagInput); setTagInput(''); }}
+            className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-3 py-2 rounded text-sm shrink-0"
+          >
+            追加
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-2">

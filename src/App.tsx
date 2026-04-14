@@ -9,6 +9,7 @@ import AccountPanel from './components/AccountPanel';
 import LoginPage from './components/LoginPage';
 import YearlySummary from './components/YearlySummary';
 import AnalysisTab from './components/AnalysisTab';
+import TagSummaryTab from './components/TagSummaryTab';
 import { useSalaryStore } from './store/useSalaryStore';
 import { supabase } from './lib/supabase';
 import type { WorkEntry } from './types';
@@ -16,7 +17,7 @@ import { useTheme } from './hooks/useTheme';
 
 type PanelMode = 'empty' | 'list' | 'form';
 type ModalMode = 'settings' | 'account' | null;
-type Tab = 'calendar' | 'yearly' | 'analysis';
+type Tab = 'calendar' | 'yearly' | 'analysis' | 'tags';
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -26,6 +27,7 @@ export default function App() {
   const clearStore = useSalaryStore((s) => s.clearStore);
   const loadError = useSalaryStore((s) => s.loadError);
   const setUserId = useSalaryStore((s) => s.setUserId);
+  const settings = useSalaryStore((s) => s.settings);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -72,6 +74,11 @@ export default function App() {
 
   const today = new Date();
   const [tab, setTab] = useState<Tab>('calendar');
+
+  // タグタブが非表示になったとき、そのタブにいたらカレンダーへ戻す
+  useEffect(() => {
+    if (!settings.showTagTab && tab === 'tags') setTab('calendar');
+  }, [settings.showTagTab]);
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -244,6 +251,18 @@ export default function App() {
           >
             分析
           </button>
+          {settings.showTagTab && (
+            <button
+              onClick={() => setTab('tags')}
+              className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
+                tab === 'tags'
+                  ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-b-2 border-blue-500'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+              }`}
+            >
+              タグ別集計
+            </button>
+          )}
         </div>
 
         {tab === 'calendar' && (
@@ -295,6 +314,10 @@ export default function App() {
 
         {tab === 'analysis' && (
           <AnalysisTab year={year} />
+        )}
+
+        {tab === 'tags' && settings.showTagTab && (
+          <TagSummaryTab year={year} />
         )}
       </div>
     </div>

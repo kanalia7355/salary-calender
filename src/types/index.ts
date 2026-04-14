@@ -10,12 +10,14 @@ export interface WorkEntry {
   stdHours: number | null;
   overtimeMult: number | null;
   withholdingTax: number;
+  tags?: string[];
 }
 
 export interface DefaultSettings {
   hourlyRate: number;
   standardHours: number;
   overtimeMultiplier: number;
+  showTagTab: boolean;
 }
 
 export interface CalcResult {
