@@ -123,20 +123,15 @@ function BarChart({ title, subtitle, data, hasActual, breakdown, showTransport, 
 
           return (
             <g key={i}>
-              {/* ホバー領域（透明） */}
-              <rect
-                x={PAD_L + i * slotW}
-                y={PAD_T}
-                width={slotW}
-                height={chartH}
-                fill="transparent"
-                onMouseMove={(e) => handleMouseMove(e, i)}
-                onMouseLeave={() => setTooltip(null)}
-                style={{ cursor: val > 0 ? 'default' : 'default' }}
-              />
               {/* バー */}
               {barH > 0 && (
-                <rect x={x} y={y} width={barW} height={barH} fill={hasActual[i] ? fillBase : fillEstimate} rx={3} />
+                <rect
+                  x={x} y={y} width={barW} height={barH}
+                  fill={hasActual[i] ? fillBase : fillEstimate} rx={3}
+                  onMouseMove={(e) => handleMouseMove(e, i)}
+                  onMouseLeave={() => setTooltip(null)}
+                  style={{ cursor: 'default' }}
+                />
               )}
               {barH === 0 && (
                 <rect x={x} y={PAD_T + chartH - 2} width={barW} height={2} fill={isDark ? '#374151' : '#e5e7eb'} rx={1} />
