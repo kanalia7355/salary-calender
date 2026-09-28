@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { WorkEntry, DefaultSettings, EntriesMap, ActualPaymentsMap } from '../types';
-import { freezeLegacyEntries, prepareEntry, snapshotPayment, validateRule } from '../utils/payments';
+import { assignPaymentLabel, freezeLegacyEntries, prepareEntry, snapshotPayment, validateRule } from '../utils/payments';
+import type { EntrySelection } from '../utils/payments';
 import { supabase } from '../lib/supabase';
 
 interface SalaryStore {
@@ -10,6 +11,7 @@ interface SalaryStore {
   actualPayments: ActualPaymentsMap;
   loadError: string | null;
   dataReady: boolean;
+  assignPaymentLabels: (selected: EntrySelection[], payerId: string, overwrite: boolean) => Promise<number>;
   reapplyPayment: (dateKey: string, id: string) => Promise<void>;
   userId: string | null;
   setUserId: (id: string | null) => void;
@@ -115,6 +117,24 @@ export const useSalaryStore = create<SalaryStore>()(
             await upsertEntries(userId, dateKey, remaining);
           }
         }
+      },
+
+      assignPaymentLabels: async (selected, payerId, overwrite) => {
+        if (!get().dataReady) throw new Error('読み込み完了後に保存してください。');
+        const changes = assignPaymentLabel(get().entries, selected, payerId, get().settings, overwrite);
+        const count = Object.entries(changes).reduce((total, [date, list]) =>
+          total + list.filter((e, i) => e !== get().entries[date][i]).length, 0);
+        if (!count) return 0;
+        const userId = get().userId;
+        if (!userId) throw new Error('ログインし直してください。');
+        // 1回のupsertで全対象日を保存し、途中までの更新を避ける。
+        const { error } = await supabase.from('entries').upsert(
+          Object.entries(changes).map(([date_key, data]) => ({
+            user_id: userId, date_key, data, updated_at: new Date().toISOString(),
+          })), { onConflict: 'user_id,date_key' });
+        if (error) throw new Error('一括保存に失敗しました: ' + error.message);
+        if (get().userId === userId) set({ entries: { ...get().entries, ...changes } });
+        return count;
       },
 
       reapplyPayment: async (dateKey, id) => {

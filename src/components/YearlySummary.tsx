@@ -1,3 +1,4 @@
+import BulkPaymentLabels from './BulkPaymentLabels';
 import { useState } from 'react';
 import { useSalaryStore } from '../store/useSalaryStore';
 import { entriesByPaymentDate, paymentGroups } from '../utils/payments';
@@ -138,6 +139,7 @@ export default function YearlySummary({ year }: Props) {
 
   return (
     <div>
+      <BulkPaymentLabels />
       <div className="flex gap-2 mb-3">
         <button className={basis === 'payment' ? 'font-bold underline' : ''} onClick={() => setBasis('payment')}>振込予定月</button>
         <button className={basis === 'work' ? 'font-bold underline' : ''} onClick={() => setBasis('work')}>勤務月</button>
