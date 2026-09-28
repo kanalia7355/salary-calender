@@ -1,0 +1,118 @@
+import type { WorkEntry, DefaultSettings, EntriesMap, PaymentRule, PaymentSnapshot } from '../types';
+import { calcEntry } from './calc.ts';
+
+export function todayInJapan(): string {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo' }).format(new Date());
+}
+
+function parseDate(key: string): Date {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) throw new Error('勤務日が不正です。');
+  const date = new Date(key + 'T00:00:00Z');
+  if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== key) {
+    throw new Error('勤務日が不正です。');
+  }
+  return date;
+}
+
+export function validateRule(rule: PaymentRule): void {
+  if (rule.kind === 'daysAfterWork') {
+    if (!Number.isInteger(rule.days) || rule.days < 0 || rule.days > 366) {
+      throw new Error('振込までの日数は0〜366の整数で入力してください。');
+    }
+  } else if (rule.kind === 'monthly') {
+    if (![rule.closingDay, rule.payDay].every(d => Number.isInteger(d) && d >= 1 && d <= 31)
+      || !Number.isInteger(rule.monthOffset) || rule.monthOffset < 0 || rule.monthOffset > 2) {
+      throw new Error('締め日・支払日は1〜31、支払月は当月〜翌々月で設定してください。');
+    }
+    if (rule.monthOffset === 0 && rule.payDay < rule.closingDay) {
+      throw new Error('当月払いの支払日は締め日以降にしてください。');
+    }
+  } else {
+    throw new Error('支払方式が不正です。');
+  }
+}
+
+// 31は月末。短い月は存在する最終日に丸める。
+function monthDate(year: number, month: number, day: number): Date {
+  const last = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, month, Math.min(day, last)));
+}
+
+export function paymentDate(workDate: string, rule: PaymentRule): string {
+  validateRule(rule);
+  const date = parseDate(workDate);
+  if (rule.kind === 'daysAfterWork') {
+    date.setUTCDate(date.getUTCDate() + rule.days);
+    return date.toISOString().slice(0, 10);
+  }
+  const year = date.getUTCFullYear();
+  let month = date.getUTCMonth();
+  if (date > monthDate(year, month, rule.closingDay)) month++;
+  return monthDate(year, month + rule.monthOffset, rule.payDay).toISOString().slice(0, 10);
+}
+
+export function snapshotPayment(dateKey: string, payerId: string | null | undefined,
+  settings: DefaultSettings): PaymentSnapshot | null {
+  if (!payerId) return null;
+  const label = settings.paymentLabels?.find(p => p.id === payerId);
+  if (!label) throw new Error('支払元ラベルが見つかりません。');
+  return {
+    payerId: label.id, payerName: label.name, rule: { ...label.rule },
+    scheduledDate: paymentDate(dateKey, label.rule),
+  };
+}
+
+export function freezeWages(entry: WorkEntry, settings: DefaultSettings): WorkEntry {
+  return {
+    ...entry,
+    hourlyRate: entry.hourlyRate ?? settings.hourlyRate,
+    stdHours: entry.stdHours ?? settings.standardHours,
+    overtimeMult: entry.overtimeMult ?? settings.overtimeMultiplier,
+  };
+}
+
+// 支払元が同じなら保存済み条件を維持する。条件の再適用は明示操作だけで行う。
+export function prepareEntry(dateKey: string, entry: WorkEntry, settings: DefaultSettings,
+  previous?: WorkEntry): WorkEntry {
+  const frozen = freezeWages(entry, settings);
+  const payerId = entry.payerId ?? null;
+  return {
+    ...frozen, payerId,
+    paymentSnapshot: previous && (previous.payerId ?? null) === payerId
+      ? previous.paymentSnapshot ?? null
+      : snapshotPayment(dateKey, payerId, settings),
+  };
+}
+
+export function freezeLegacyEntries(entries: EntriesMap, settings: DefaultSettings,
+  today = todayInJapan()): EntriesMap {
+  return Object.fromEntries(Object.entries(entries).map(([date, list]) => [
+    date, date <= today ? list.map(e => freezeWages(e, settings)) : list,
+  ]));
+}
+
+export function entriesByPaymentDate(entries: EntriesMap): EntriesMap {
+  const result: EntriesMap = {};
+  for (const list of Object.values(entries)) {
+    for (const entry of list) {
+      const date = entry.paymentSnapshot?.scheduledDate;
+      if (date) (result[date] ??= []).push(entry);
+    }
+  }
+  return result;
+}
+
+export function paymentGroups(entries: EntriesMap, settings: DefaultSettings, year: number) {
+  const groups = new Map<string, { date: string; payer: string; count: number; amount: number }>();
+  for (const list of Object.values(entries)) for (const entry of list) {
+    const s = entry.paymentSnapshot;
+    if (!s || !s.scheduledDate.startsWith(year + '-')) continue;
+    const key = s.scheduledDate + ':' + s.payerId;
+    const row = groups.get(key) ?? { date: s.scheduledDate, payer: s.payerName, count: 0, amount: 0 };
+    const r = calcEntry(entry, settings);
+    row.count++;
+    row.amount += r.netPay + r.transport + r.otherFee;
+    groups.set(key, row);
+  }
+  return [...groups.values()].sort((a, b) => a.date.localeCompare(b.date) || a.payer.localeCompare(b.payer));
+}

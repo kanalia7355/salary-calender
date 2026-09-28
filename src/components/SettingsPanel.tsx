@@ -1,3 +1,4 @@
+import PaymentLabelsEditor from './PaymentLabelsEditor';
 import { useState } from 'react';
 import { useSalaryStore } from '../store/useSalaryStore';
 import type { DefaultSettings } from '../types';
@@ -12,9 +13,19 @@ export default function SettingsPanel({ onClose, theme, onToggleTheme }: Props) 
   const { settings, updateSettings } = useSalaryStore();
   const [form, setForm] = useState<DefaultSettings>({ ...settings });
 
-  const handleSave = () => {
-    updateSettings(form);
-    onClose();
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const handleSave = async () => {
+    setError('');
+    if (!Number.isFinite(form.hourlyRate) || form.hourlyRate < 0
+      || !Number.isFinite(form.standardHours) || form.standardHours < 0
+      || !Number.isFinite(form.overtimeMultiplier) || form.overtimeMultiplier < 1.25) {
+      setError('時給・所定時間は0以上、深夜倍率は1.25以上で入力してください。'); return;
+    }
+    setSaving(true);
+    try { await updateSettings(form); onClose(); }
+    catch (e) { setError(e instanceof Error ? e.message : '保存に失敗しました。'); }
+    finally { setSaving(false); }
   };
 
   return (
@@ -43,7 +54,7 @@ export default function SettingsPanel({ onClose, theme, onToggleTheme }: Props) 
       </div>
 
       <div>
-        <label className="text-gray-500 dark:text-gray-400 text-xs mb-1 block">割増賃金倍率</label>
+        <label className="text-gray-500 dark:text-gray-400 text-xs mb-1 block">深夜割増倍率（最低1.25）</label>
         <input
           type="number"
           step="0.01"
@@ -90,9 +101,14 @@ export default function SettingsPanel({ onClose, theme, onToggleTheme }: Props) 
         </button>
       </div>
 
+      <PaymentLabelsEditor labels={form.paymentLabels ?? []}
+        onChange={paymentLabels => setForm(f => ({ ...f, paymentLabels }))} />
+      <p className="text-xs text-gray-500 dark:text-gray-400">基本時給の変更は登録済みの過去勤務には反映しません。</p>
+      {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2 mt-4">
         <button
           onClick={handleSave}
+          disabled={saving}
           className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-medium"
         >
           保存

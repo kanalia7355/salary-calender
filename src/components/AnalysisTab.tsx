@@ -1,5 +1,6 @@
 import { useMemo, useState, useRef } from 'react';
 import { useSalaryStore } from '../store/useSalaryStore';
+import { entriesByPaymentDate } from '../utils/payments';
 import { calcEntry } from '../utils/calc';
 
 interface Props {
@@ -184,13 +185,13 @@ function BarChart({ title, subtitle, data, hasActual, breakdown, showTransport, 
               </div>
               {showTransport && (
                 <div className="flex justify-between gap-4">
-                  <span className="text-gray-400">うち交通費</span>
+                  <span className="text-gray-400">交通費（予定）</span>
                   <span>{fmt(bd.transport)}</span>
                 </div>
               )}
               {showTransport && (
                 <div className="flex justify-between gap-4 border-t border-gray-600 mt-1 pt-1">
-                  <span className="text-gray-400">うち給与等</span>
+                  <span className="text-gray-400">給与等（推定）</span>
                   <span>{fmt(bd.actual! - bd.transport)}</span>
                 </div>
               )}
@@ -236,7 +237,7 @@ export default function AnalysisTab({ year }: Props) {
       const monthKey = `${year}-${String(i + 1).padStart(2, '0')}`;
       let payTotal = 0, withholdingTax = 0, transport = 0, otherFee = 0;
 
-      Object.entries(entries).forEach(([dateKey, dayEntries]) => {
+      Object.entries(entriesByPaymentDate(entries)).forEach(([dateKey, dayEntries]) => {
         if (!dateKey.startsWith(monthKey)) return;
         dayEntries.forEach((e) => {
           const r = calcEntry(e, settings);
@@ -276,6 +277,7 @@ export default function AnalysisTab({ year }: Props) {
 
   return (
     <div className="space-y-5">
+      <p className="text-xs text-gray-500 dark:text-gray-400">振込予定月基準。予定日未設定の勤務は含みません。交通費の内訳は予定額です。</p>
       {/* 年間サマリー */}
       <div className="grid grid-cols-2 gap-3">
         {/* 年間収入合計 */}

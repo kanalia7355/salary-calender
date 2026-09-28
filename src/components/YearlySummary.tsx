@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSalaryStore } from '../store/useSalaryStore';
+import { entriesByPaymentDate, paymentGroups } from '../utils/payments';
 import { calcEntry, formatCurrency } from '../utils/calc';
 
 interface Props {
@@ -14,7 +15,20 @@ function escapeCsv(value: string | number): string {
 }
 
 export default function YearlySummary({ year }: Props) {
-  const { entries, settings, actualPayments, setActualPayment } = useSalaryStore();
+  const { entries, settings, actualPayments, setActualPayment, reapplyPayment } = useSalaryStore();
+  const [basis, setBasis] = useState<'payment' | 'work'>('payment');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const sourceEntries = basis === 'payment' ? entriesByPaymentDate(entries) : entries;
+  const groups = paymentGroups(entries, settings, year);
+  const unassigned = Object.entries(entries).flatMap(([date, list]) =>
+    list.filter(e => !e.paymentSnapshot).map(entry => ({ date, entry })));
+  const reapply = async (date: string, id: string) => {
+    setBusy(true); setError('');
+    try { await reapplyPayment(date, id); }
+    catch (e) { setError(e instanceof Error ? e.message : '保存に失敗しました。'); }
+    finally { setBusy(false); }
+  };
   const [editingMonth, setEditingMonth] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
 
@@ -28,7 +42,7 @@ export default function YearlySummary({ year }: Props) {
     let transport = 0;       // 交通費合計
     let otherFee = 0;        // その他費用合計
 
-    Object.entries(entries).forEach(([dateKey, dayEntries]) => {
+    Object.entries(sourceEntries).forEach(([dateKey, dayEntries]) => {
       if (!dateKey.startsWith(monthKey)) return;
       if (dayEntries.length === 0) return;
       days++;
@@ -42,14 +56,15 @@ export default function YearlySummary({ year }: Props) {
     });
 
     const netPay  = payTotal - withholdingTax;          // 手取り給与（交通費除く）
-    const expected = netPay + transport + otherFee;     // 給与見込み合計
-    const actual = actualPayments[monthKey] ?? null;
+    const expected = netPay + transport + otherFee;     // 予定額合計
+    const actual = basis === 'payment' ? actualPayments[monthKey] ?? null : null;
     const diff = actual !== null ? actual - expected : null;
 
     return { label, monthKey, days, payTotal, withholdingTax, netPay, transport, otherFee, expected, actual, diff };
   });
 
   const totalExpected      = rows.reduce((s, r) => s + r.expected, 0);
+  const comparedExpected = rows.reduce((sum, r) => sum + (r.actual !== null ? r.expected : 0), 0);
   const totalActual        = rows.reduce((s, r) => s + (r.actual ?? 0), 0);
   const totalPayOnly       = rows.reduce((s, r) => s + r.payTotal, 0);
   const totalWithholding   = rows.reduce((s, r) => s + r.withholdingTax, 0);
@@ -60,12 +75,16 @@ export default function YearlySummary({ year }: Props) {
     setInputValue(current !== null ? String(current) : '');
   };
 
-  const commitEdit = (monthKey: string) => {
-    const amount = parseInt(inputValue, 10);
-    if (!isNaN(amount) && amount >= 0) {
-      setActualPayment(monthKey, amount);
+  const commitEdit = async (monthKey: string) => {
+    if (busy) return;
+    const amount = Number(inputValue);
+    if (!inputValue.trim() || !Number.isFinite(amount) || amount < 0) {
+      setError('実振込額は0以上の金額を入力してください。'); return;
     }
-    setEditingMonth(null);
+    setBusy(true); setError('');
+    try { await setActualPayment(monthKey, amount); setEditingMonth(null); }
+    catch (e) { setError(e instanceof Error ? e.message : '保存に失敗しました。'); }
+    finally { setBusy(false); }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent, monthKey: string) => {
@@ -74,7 +93,7 @@ export default function YearlySummary({ year }: Props) {
   };
 
   const exportCsv = () => {
-    const headers = ['月', '勤務日数', '総支給額（交通費除く）', '源泉徴収額', '手取り給与（交通費除く）', '交通費', 'その他費用', '給与見込み合計', '実振込額', '差額'];
+    const headers = ['月', '対象日数', '総支給額（交通費除く）', '源泉徴収額', '手取り給与（交通費除く）', '交通費', 'その他費用', '給与見込み合計', '実振込額', '差額'];
     const dataRows = rows.map((r) => [
       r.label,
       r.days,
@@ -97,11 +116,11 @@ export default function YearlySummary({ year }: Props) {
       Math.round(rows.reduce((s, r) => s + r.otherFee, 0)),
       Math.round(totalExpected),
       registeredCount > 0 ? Math.round(totalActual) : '',
-      registeredCount > 0 ? Math.round(totalActual - totalExpected) : '',
+      registeredCount > 0 ? Math.round(totalActual - comparedExpected) : '',
     ];
 
     const csvLines = [
-      `# ${year}年 給与サマリー`,
+      `# ${year}年 給与サマリー（${basis === 'payment' ? '振込予定月' : '勤務月'}基準）`,
       headers.map(escapeCsv).join(','),
       ...dataRows.map((row) => row.map(escapeCsv).join(',')),
       totalRow.map(escapeCsv).join(','),
@@ -119,21 +138,30 @@ export default function YearlySummary({ year }: Props) {
 
   return (
     <div>
+      <div className="flex gap-2 mb-3">
+        <button className={basis === 'payment' ? 'font-bold underline' : ''} onClick={() => setBasis('payment')}>振込予定月</button>
+        <button className={basis === 'work' ? 'font-bold underline' : ''} onClick={() => setBasis('work')}>勤務月</button>
+      </div>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+        {basis === 'payment' ? '振込予定月に集計します。実振込額は実際の入金月に入力してください。差額合計は入力済み月のみ比較します。' : '勤務月に集計します。実振込額との比較は振込予定月で行います。'}
+        対象日数は{basis === 'payment' ? '振込予定日の数' : '勤務日の数'}です。
+      </p>
+      {error && <p role="alert" className="text-red-600">{error}</p>}
       {/* 年次サマリーカード */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3 mb-5">
         <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
-          <div className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">年間給与見込み</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">年間振込予定額</div>
           <div className="text-sm md:text-lg font-bold text-gray-900 dark:text-white">{formatCurrency(totalExpected)}</div>
         </div>
         <div className="bg-blue-600 rounded-lg p-3">
           <div className="text-xs text-gray-200 mb-0.5">実振込額合計 ({registeredCount}ヶ月)</div>
           <div className="text-sm md:text-lg font-bold text-white">{formatCurrency(totalActual)}</div>
         </div>
-        <div className={`rounded-lg p-3 col-span-2 md:col-span-1 ${totalActual - totalExpected >= 0 ? 'bg-green-100 dark:bg-green-800' : 'bg-red-100 dark:bg-red-900'}`}>
-          <div className={`text-xs mb-0.5 ${totalActual - totalExpected >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>差額（実振込 − 見込み）</div>
-          <div className={`text-sm md:text-lg font-bold ${totalActual - totalExpected >= 0 ? 'text-green-800 dark:text-white' : 'text-red-800 dark:text-white'}`}>
+        <div className={`rounded-lg p-3 col-span-2 md:col-span-1 ${totalActual - comparedExpected >= 0 ? 'bg-green-100 dark:bg-green-800' : 'bg-red-100 dark:bg-red-900'}`}>
+          <div className={`text-xs mb-0.5 ${totalActual - comparedExpected >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>差額（実振込 − 見込み）</div>
+          <div className={`text-sm md:text-lg font-bold ${totalActual - comparedExpected >= 0 ? 'text-green-800 dark:text-white' : 'text-red-800 dark:text-white'}`}>
             {registeredCount > 0
-              ? `${totalActual - totalExpected >= 0 ? '+' : ''}${formatCurrency(totalActual - totalExpected)}`
+              ? `${totalActual - comparedExpected >= 0 ? '+' : ''}${formatCurrency(totalActual - comparedExpected)}`
               : '—'}
           </div>
         </div>
@@ -162,9 +190,10 @@ export default function YearlySummary({ year }: Props) {
                   {expected > 0 ? formatCurrency(expected) : <span className="text-gray-400 dark:text-gray-600">—</span>}
                 </td>
                 <td className="py-2 px-2 text-right">
-                  {editingMonth === monthKey ? (
+                  {basis === 'work' ? '—' : editingMonth === monthKey ? (
                     <input
                       type="number"
+                      disabled={busy}
                       autoFocus
                       className="w-28 bg-white dark:bg-gray-700 border border-blue-500 rounded px-2 py-0.5 text-gray-900 dark:text-white text-sm text-right focus:outline-none"
                       value={inputValue}
@@ -208,8 +237,8 @@ export default function YearlySummary({ year }: Props) {
               </td>
               <td className="py-2 pl-2 text-right">
                 {registeredCount > 0 ? (
-                  <span className={totalActual - totalExpected >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                    {totalActual - totalExpected >= 0 ? '+' : ''}{formatCurrency(totalActual - totalExpected)}
+                  <span className={totalActual - comparedExpected >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                    {totalActual - comparedExpected >= 0 ? '+' : ''}{formatCurrency(totalActual - comparedExpected)}
                   </span>
                 ) : '—'}
               </td>
@@ -219,7 +248,7 @@ export default function YearlySummary({ year }: Props) {
       </div>
 
       <div className="flex items-center justify-between mt-3">
-        <p className="text-gray-400 dark:text-gray-600 text-xs">実振込額のセルをクリックして金額を入力 → Enterで確定</p>
+        <p className="text-gray-400 dark:text-gray-600 text-xs">振込予定月表示で実振込額を入力 → Enterで確定</p>
         <button
           onClick={exportCsv}
           className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 text-xs px-3 py-1.5 rounded font-medium transition-colors"
@@ -230,6 +259,37 @@ export default function YearlySummary({ year }: Props) {
           CSV エクスポート
         </button>
       </div>
+
+      <details className="mt-5">
+        <summary className="cursor-pointer font-semibold">支払元・振込予定日別の内訳</summary>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead><tr><th className="text-left">予定日</th><th className="text-left">支払元</th><th>勤務件数</th><th>予定額</th></tr></thead>
+            <tbody>{groups.map(g => <tr key={g.date + g.payer}>
+              <td>{g.date}</td><td>{g.payer}</td><td className="text-right">{g.count}</td>
+              <td className="text-right">{formatCurrency(g.amount)}</td>
+            </tr>)}</tbody>
+          </table>
+          {groups.length === 0 && <p className="text-sm mt-2">この年の振込予定はありません。</p>}
+        </div>
+      </details>
+      <details className="mt-4">
+        <summary className="cursor-pointer">支払予定未設定：{unassigned.length}件（全年）</summary>
+        <p className="text-xs text-gray-500 dark:text-gray-400">未設定分は振込予定額に含みません。カレンダーで勤務を編集し、支払元ラベルを指定してください。</p>
+        {unassigned.map(({ date, entry }) => <div key={date + entry.id} className="text-sm py-1">
+          {date} {entry.projectName}
+          {entry.payerId && <button disabled={busy} className="ml-2 underline" onClick={() => reapply(date, entry.id)}>最新の支払条件を適用</button>}
+        </div>)}
+      </details>
+      <details className="mt-4">
+        <summary className="cursor-pointer">保存済み支払条件の再適用（勤務年：{year}年）</summary>
+        <p className="text-xs text-gray-500 dark:text-gray-400">下の操作をした勤務だけ、現在のラベル設定で予定日を更新します。</p>
+        {Object.entries(entries).filter(([date]) => date.startsWith(year + '-')).flatMap(([date, list]) =>
+          list.filter(e => e.paymentSnapshot).map(entry => <div key={date + entry.id} className="text-sm py-1">
+            {date} {entry.projectName} → {entry.paymentSnapshot?.scheduledDate}
+            <button disabled={busy} className="ml-2 underline" onClick={() => reapply(date, entry.id)}>最新の支払条件を適用</button>
+          </div>))}
+      </details>
     </div>
   );
 }

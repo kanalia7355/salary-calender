@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { WorkEntry, CalcResult } from '../types';
+import type { WorkEntry } from '../types';
 import { useSalaryStore } from '../store/useSalaryStore';
+import { snapshotPayment } from '../utils/payments';
 import { calcEntry, formatCurrency } from '../utils/calc';
 
 interface Props {
@@ -22,6 +23,8 @@ const EMPTY: Omit<WorkEntry, 'id'> = {
   overtimeMult: null,
   withholdingTax: 0,
   tags: [],
+  payerId: null,
+  paymentSnapshot: null,
 };
 
 // "HH:MM" ↔ { h, m } 変換
@@ -102,7 +105,9 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
     ...(entry ?? {}),
     tags: entry?.tags ?? [],
   });
-  const [preview, setPreview] = useState<CalcResult | null>(null);
+  const preview = calcEntry({ id: entry?.id ?? '', ...form }, settings);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   const [tagInput, setTagInput] = useState('');
 
   const allTags = useMemo(() => {
@@ -121,24 +126,35 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
   const removeTag = (tag: string) =>
     set('tags', (form.tags ?? []).filter((t) => t !== tag));
 
-  useEffect(() => {
-    const e: WorkEntry = { id: entry?.id ?? '', ...form };
-    setPreview(calcEntry(e, settings));
-  }, [form, settings]);
 
   const set = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [key]: val }));
 
   const parseOptNum = (v: string): number | null => (v === '' ? null : Number(v));
 
-  const handleSave = () => {
-    if (!form.projectName || !form.startTime || !form.endTime) return;
-    if (entry) {
-      updateEntry(dateKey, { id: entry.id, ...form });
-    } else {
-      addEntry(dateKey, { id: uuidv4(), ...form });
+  const handleSave = async () => {
+    setError('');
+    const minutes = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+    const start = minutes(form.startTime), end = minutes(form.endTime);
+    if (!form.projectName.trim() || !form.payerId) {
+      setError('案件名と支払元ラベルを指定してください。'); return;
     }
-    onClose();
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start
+      || !Number.isFinite(form.breakMinutes) || form.breakMinutes < 0 || form.breakMinutes > end - start) {
+      setError('終了時刻と休憩時間を確認してください。翌日の時刻は24時以上で入力します。'); return;
+    }
+    if ([form.hourlyRate, form.stdHours, form.transportFee, form.otherFee, form.withholdingTax]
+      .some(v => v !== null && (!Number.isFinite(v) || v < 0))
+      || (form.overtimeMult !== null && (!Number.isFinite(form.overtimeMult) || form.overtimeMult < 1.25))) {
+      setError('金額・時間は0以上、深夜倍率は1.25以上で入力してください。'); return;
+    }
+    setSaving(true);
+    try {
+      if (entry) await updateEntry(dateKey, { id: entry.id, ...form });
+      else await addEntry(dateKey, { id: uuidv4(), ...form });
+      onClose();
+    } catch (e) { setError(e instanceof Error ? e.message : '保存に失敗しました。'); }
+    finally { setSaving(false); }
   };
 
   const inputClass = "w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500";
@@ -156,6 +172,24 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
           value={form.projectName}
           onChange={(e) => set('projectName', e.target.value)}
         />
+      </div>
+
+      <div>
+        <label className={labelClass}>支払元ラベル（1つ指定）</label>
+        <select className={inputClass} value={form.payerId ?? ''}
+          onChange={e => {
+            const payerId = e.target.value || null;
+            setForm(f => ({ ...f, payerId, paymentSnapshot:
+              payerId === entry?.payerId ? entry?.paymentSnapshot ?? null : snapshotPayment(dateKey, payerId, settings) }));
+          }}>
+          <option value="">未設定</option>
+          {(settings.paymentLabels ?? []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          振込予定日：{form.paymentSnapshot?.scheduledDate ?? '未設定'}
+          {(settings.paymentLabels ?? []).length === 0 && '（基本設定で支払元ラベルを追加してください）'}
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">保存済みの条件は維持します。最新条件の再適用は年次サマリーから行えます。</p>
       </div>
 
       {/* タグ */}
@@ -296,7 +330,7 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
       </div>
 
       <div>
-        <label className={labelClass}>割増倍率（基本: ×{settings.overtimeMultiplier}）</label>
+        <label className={labelClass}>深夜割増倍率（基本: ×{settings.overtimeMultiplier}）</label>
         <input
           type="number"
           step="0.01"
@@ -330,11 +364,11 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
             <span className="text-gray-900 dark:text-white">{preview.regularHours.toFixed(2)} h</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-orange-600 dark:text-orange-300">残業</span>
+            <span className="text-orange-600 dark:text-orange-300">時間外（実働8h超）</span>
             <span className="text-orange-600 dark:text-orange-300">{preview.overtimeHours.toFixed(2)} h</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-purple-600 dark:text-purple-400">深夜割増（22〜4時）</span>
+            <span className="text-purple-600 dark:text-purple-400">深夜手当</span>
             <span className="text-purple-600 dark:text-purple-400">{preview.deepNightHours.toFixed(2)} h</span>
           </div>
           <div className="border-t border-gray-200 dark:border-gray-700 pt-1 mt-1 space-y-1">
@@ -366,9 +400,15 @@ export default function EntryForm({ dateKey, entry, onClose }: Props) {
         </div>
       )}
 
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        時間外は1勤務の実働8時間超に25％加算。深夜時間は実働の内数です。
+        休憩は深夜以外から優先して差し引く概算です。
+      </p>
+      {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
       <div className="flex gap-2 mt-auto">
         <button
           onClick={handleSave}
+          disabled={saving}
           className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-medium"
         >
           保存
