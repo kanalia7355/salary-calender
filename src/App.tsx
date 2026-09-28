@@ -27,6 +27,7 @@ export default function App() {
   const clearStore = useSalaryStore((s) => s.clearStore);
   const loadError = useSalaryStore((s) => s.loadError);
   const setUserId = useSalaryStore((s) => s.setUserId);
+  const dataReady = useSalaryStore((s) => s.dataReady);
   const settings = useSalaryStore((s) => s.settings);
 
   useEffect(() => {
@@ -138,6 +139,13 @@ export default function App() {
   };
 
   const periodLabel = tab === 'yearly' ? `${year}年` : `${year}年${month}月`;
+
+  if (!dataReady) {
+    return <div className="p-6 text-gray-900 dark:text-white">
+      <p>{loadError ?? '勤務データを読み込んでいます…'}</p>
+      {loadError && <button className="mt-3 underline" onClick={() => loadFromSupabase(session.user.id)}>再試行</button>}
+    </div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">

@@ -11,6 +11,8 @@ export interface WorkEntry {
   overtimeMult: number | null;
   withholdingTax: number;
   tags?: string[];
+  payerId?: string | null;
+  paymentSnapshot?: PaymentSnapshot | null;
 }
 
 export interface DefaultSettings {
@@ -18,6 +20,7 @@ export interface DefaultSettings {
   standardHours: number;
   overtimeMultiplier: number;
   showTagTab: boolean;
+  paymentLabels?: PaymentLabel[];
 }
 
 export interface CalcResult {
@@ -36,3 +39,20 @@ export type EntriesMap = Record<string, WorkEntry[]>;
 
 // key: "YYYY-MM"
 export type ActualPaymentsMap = Record<string, number>;
+
+export type PaymentRule =
+  | { kind: 'daysAfterWork'; days: number }
+  | { kind: 'monthly'; closingDay: number; payDay: number; monthOffset: number };
+
+export interface PaymentLabel {
+  id: string;
+  name: string;
+  rule: PaymentRule;
+}
+
+export interface PaymentSnapshot {
+  payerId: string;
+  payerName: string;
+  rule: PaymentRule;
+  scheduledDate: string;
+}
