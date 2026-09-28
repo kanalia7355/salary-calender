@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { calcEntry, calcDay } from '../src/utils/calc.ts';
-import { paymentDate, prepareEntry, freezeLegacyEntries, snapshotPayment, entriesByPaymentDate, paymentGroups } from '../src/utils/payments.ts';
+import { assignPaymentLabel, paymentDate, prepareEntry, freezeLegacyEntries, snapshotPayment, entriesByPaymentDate, paymentGroups } from '../src/utils/payments.ts';
 
 const settings = { hourlyRate: 1000, standardHours: 8, overtimeMultiplier: 1.25, showTagTab: false,
   paymentLabels: [
@@ -86,4 +86,40 @@ test('年をまたぐ支払集計・未設定除外・費用と税', () => {
   assert.equal(entriesByPaymentDate(map)['2027-01-04'].length, 1);
   assert.equal(paymentGroups(map, settings, 2026).length, 0);
   assert.deepEqual(paymentGroups(map, settings, 2027), [{ date: '2027-01-04', payer: '会社A', count: 1, amount: 8600 }]);
+});
+
+test('一括設定は選択した勤務だけ更新し、時給・費用・タグを維持', () => {
+  const a = entry('09:00', '18:00', { id: 'a', hourlyRate: 1234, transportFee: 500, tags: ['現場'] });
+  const b = entry('09:00', '18:00', { id: 'b' });
+  const c = entry('22:00', '29:00', { id: 'c' });
+  const original = { '2026-12-28': [a, b], '2026-12-29': [c] };
+  const result = assignPaymentLabel(original, [
+    { dateKey: '2026-12-28', id: 'a' }, { dateKey: '2026-12-29', id: 'c' },
+  ], 'a', settings);
+  assert.equal(result['2026-12-28'][0].paymentSnapshot.scheduledDate, '2027-01-04');
+  assert.equal(result['2026-12-29'][0].paymentSnapshot.scheduledDate, '2027-01-05');
+  assert.equal(result['2026-12-28'][0].hourlyRate, 1234);
+  assert.equal(result['2026-12-28'][0].transportFee, 500);
+  assert.deepEqual(result['2026-12-28'][0].tags, ['現場']);
+  assert.equal(result['2026-12-28'][1], b);
+  assert.equal(original['2026-12-28'][0].payerId, undefined);
+});
+test('一括設定は既存ラベルを既定で保護し、明示指定時のみ変更', () => {
+  const e = prepareEntry('2026-09-29', entry('09:00', '18:00', { payerId: 'a' }), settings);
+  const map = { '2026-09-29': [e] };
+  const selection = [{ dateKey: '2026-09-29', id: e.id }];
+  assert.deepEqual(assignPaymentLabel(map, selection, 'b', settings), {});
+  const updated = assignPaymentLabel(map, selection, 'b', settings, true);
+  assert.equal(updated['2026-09-29'][0].payerId, 'b');
+  assert.equal(updated['2026-09-29'][0].paymentSnapshot.scheduledDate, '2026-11-25');
+  const changedSettings = { ...settings, paymentLabels: [{ ...settings.paymentLabels[0], rule: { kind: 'daysAfterWork', days: 30 } }] };
+  assert.deepEqual(assignPaymentLabel(map, selection, 'a', changedSettings, true), {});
+});
+test('一括設定は選択重複を許容し、不明な勤務・ラベルを拒否', () => {
+  const map = { '2026-09-29': [entry()] };
+  const selection = { dateKey: '2026-09-29', id: 'test' };
+  assert.equal(assignPaymentLabel(map, [selection, selection], 'a', settings)['2026-09-29'].length, 1);
+  assert.throws(() => assignPaymentLabel(map, [{ ...selection, id: 'deleted' }], 'a', settings));
+  assert.throws(() => assignPaymentLabel(map, [selection], 'missing', settings));
+  assert.deepEqual(assignPaymentLabel(map, [], 'a', settings), {});
 });

@@ -116,3 +116,31 @@ export function paymentGroups(entries: EntriesMap, settings: DefaultSettings, ye
   }
   return [...groups.values()].sort((a, b) => a.date.localeCompare(b.date) || a.payer.localeCompare(b.payer));
 }
+
+export interface EntrySelection { dateKey: string; id: string }
+
+// ラベルだけを変更し、適用時給・勤務内容はそのまま保持する。
+// 同じラベルの保存済み条件は維持し、未設定または別ラベルにだけ現在の条件を適用。
+export function assignPaymentLabel(entries: EntriesMap, selected: EntrySelection[],
+  payerId: string, settings: DefaultSettings, overwrite = false): EntriesMap {
+  if (!payerId || !settings.paymentLabels?.some(p => p.id === payerId)) {
+    throw new Error('支払元ラベルを選択してください。');
+  }
+  const changed: EntriesMap = {};
+  const keys = new Set(selected.map(s => JSON.stringify([s.dateKey, s.id])));
+  let found = 0;
+  for (const [date, list] of Object.entries(entries)) {
+    let touched = false;
+    const next = list.map(entry => {
+      if (!keys.has(JSON.stringify([date, entry.id]))) return entry;
+      found++;
+      if (!overwrite && (entry.payerId || entry.paymentSnapshot)) return entry;
+      if (entry.payerId === payerId && entry.paymentSnapshot) return entry;
+      touched = true;
+      return { ...entry, payerId, paymentSnapshot: snapshotPayment(date, payerId, settings) };
+    });
+    if (touched) changed[date] = next;
+  }
+  if (found !== keys.size) throw new Error('選択した勤務が変更・削除されています。選び直してください。');
+  return changed;
+}
