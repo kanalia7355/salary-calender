@@ -48,6 +48,7 @@ export interface PaymentLabel {
   id: string;
   name: string;
   rule: PaymentRule;
+  overtimePremiumEnabled?: boolean;
 }
 
 export interface PaymentSnapshot {
@@ -55,4 +56,5 @@ export interface PaymentSnapshot {
   payerName: string;
   rule: PaymentRule;
   scheduledDate: string;
+  overtimePremiumEnabled?: boolean;
 }

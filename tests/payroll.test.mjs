@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { calcEntry, calcDay } from '../src/utils/calc.ts';
-import { assignPaymentLabel, paymentDate, prepareEntry, freezeLegacyEntries, snapshotPayment, entriesByPaymentDate, paymentGroups } from '../src/utils/payments.ts';
+import { assignPaymentLabel, paymentDate, prepareEntry, freezeLegacyEntries, migratePaymentSnapshots, monthlyPaymentSummary, snapshotPayment, entriesByPaymentDate, paymentGroups } from '../src/utils/payments.ts';
 
 const settings = { hourlyRate: 1000, standardHours: 8, overtimeMultiplier: 1.25, showTagTab: false,
   paymentLabels: [
-    { id: 'a', name: '会社A', rule: { kind: 'daysAfterWork', days: 7 } },
-    { id: 'b', name: '会社B', rule: { kind: 'monthly', closingDay: 20, payDay: 25, monthOffset: 1 } },
+    { id: 'a', name: '会社A', rule: { kind: 'daysAfterWork', days: 7 }, overtimePremiumEnabled: true },
+    { id: 'b', name: '会社B', rule: { kind: 'monthly', closingDay: 20, payDay: 25, monthOffset: 1 }, overtimePremiumEnabled: false },
   ] };
 const entry = (startTime = '09:00', endTime = '18:00', extra = {}) => ({
   id: 'test', projectName: 'test', startTime, endTime, breakMinutes: 0, transportFee: 0,
@@ -28,7 +28,9 @@ for (const [name, start, end, extra, night, overtime, pay] of [
   ['深夜倍率下限', '22:00', '23:00', { overtimeMult: 1 }, 1, 0, 1250],
   ['1分超過', '09:00', '17:01', {}, 0, 1/60, 8000 + 1250/60],
 ]) test(name, () => {
-  const result = calcEntry(entry(start, end, extra), settings);
+  const result = calcEntry(entry(start, end, { ...extra,
+    paymentSnapshot: { payerId: 'a', payerName: '会社A', rule: { kind: 'daysAfterWork', days: 7 },
+      scheduledDate: '2026-10-06', overtimePremiumEnabled: true } }), settings);
   assert.equal(result.deepNightHours, night);
   assert.equal(result.overtimeHours, overtime);
   assert.ok(Math.abs(result.pay - pay) < 1e-8);
@@ -37,7 +39,36 @@ for (const [name, start, end, extra, night, overtime, pay] of [
 test('費用と源泉徴収を維持', () => {
   const e = entry('09:00', '18:00', { withholdingTax: 100, transportFee: 500, otherFee: 200 });
   const r = calcDay([e, e], settings);
-  assert.equal(r.netPay, 18300); assert.equal(r.transport, 1000); assert.equal(r.otherFee, 400);
+  assert.equal(r.netPay, 17800); assert.equal(r.transport, 1000); assert.equal(r.otherFee, 400);
+});
+test('支払元ラベルで8時間超の25%割増を無効化', () => {
+  const withoutPremium = entry('09:00', '19:00', { breakMinutes: 60,
+    paymentSnapshot: { payerId: 'b', payerName: '会社B', rule: { kind: 'daysAfterWork', days: 0 },
+      scheduledDate: '2026-09-29', overtimePremiumEnabled: false } });
+  assert.equal(calcEntry(withoutPremium, settings).pay, 9000);
+  assert.equal(calcEntry({ ...withoutPremium, paymentSnapshot: null }, settings).pay, 9000);
+});
+test('旧スナップショットを勤務単位で移行し、件数と給与を維持', () => {
+  const old = entry('09:00', '19:00', { id: 'old', breakMinutes: 60, payerId: 'b',
+    paymentSnapshot: { payerId: 'b', payerName: '会社B',
+      rule: { kind: 'monthly', closingDay: 20, payDay: 25, monthOffset: 1 },
+      scheduledDate: '2026-10-25' } });
+  const source = { '2026-09-21': [old] };
+  const migrated = migratePaymentSnapshots(source, settings);
+  assert.equal(Object.keys(migrated).length, 1);
+  assert.equal(migrated['2026-09-21'].length, 1);
+  assert.equal(migrated['2026-09-21'][0].paymentSnapshot.scheduledDate, '2026-11-25');
+  assert.equal(migrated['2026-09-21'][0].paymentSnapshot.overtimePremiumEnabled, false);
+  assert.equal(calcEntry(migrated['2026-09-21'][0], settings).pay, 9000);
+  assert.deepEqual(migratePaymentSnapshots(migrated, settings), migrated);
+});
+test('振込月集計は振込予定日数ではなく元の勤務日数と勤務件数を数える', () => {
+  const first = prepareEntry('2026-09-01', entry('09:00', '18:00', { id: '1', payerId: 'a', breakMinutes: 60 }), settings);
+  const second = prepareEntry('2026-09-01', entry('18:00', '22:00', { id: '2', payerId: 'a' }), settings);
+  const third = prepareEntry('2026-09-02', entry('09:00', '18:00', { id: '3', payerId: 'a', breakMinutes: 60 }), settings);
+  const summary = monthlyPaymentSummary({ '2026-09-01': [first, second], '2026-09-02': [third] }, settings, '2026-09');
+  assert.equal(summary.workDays, 2);
+  assert.equal(summary.entryCount, 3);
 });
 for (const [date, rule, expected] of [
   ['2026-12-28', { kind: 'daysAfterWork', days: 7 }, '2027-01-04'],

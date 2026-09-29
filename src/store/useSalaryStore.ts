@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { WorkEntry, DefaultSettings, EntriesMap, ActualPaymentsMap } from '../types';
-import { assignPaymentLabel, freezeLegacyEntries, prepareEntry, snapshotPayment, validateRule } from '../utils/payments';
+import { assignPaymentLabel, freezeLegacyEntries, migratePaymentSnapshots, prepareEntry, snapshotPayment, validateRule } from '../utils/payments';
 import type { EntrySelection } from '../utils/payments';
 import { supabase } from '../lib/supabase';
 
@@ -39,6 +39,15 @@ async function upsertEntries(userId: string, dateKey: string, data: WorkEntry[])
       onConflict: 'user_id,date_key',
     });
   if (error) throw new Error('勤務の保存に失敗しました: ' + error.message);
+}
+
+async function upsertEntryRows(userId: string, rows: EntriesMap) {
+  const values = Object.entries(rows).map(([date_key, data]) => ({
+    user_id: userId, date_key, data, updated_at: new Date().toISOString(),
+  }));
+  if (!values.length) return;
+  const { error } = await supabase.from('entries').upsert(values, { onConflict: 'user_id,date_key' });
+  if (error) throw new Error('勤務の一括保存に失敗しました: ' + error.message);
 }
 
 async function deleteEntriesRow(userId: string, dateKey: string) {
@@ -201,10 +210,10 @@ export const useSalaryStore = create<SalaryStore>()(
           const loadedSettings = settingsRes.data?.data
             ? { ...DEFAULT_SETTINGS, ...(settingsRes.data.data as DefaultSettings) }
             : DEFAULT_SETTINGS;
-          const frozen = freezeLegacyEntries(entries, loadedSettings);
-          for (const [date, list] of Object.entries(frozen)) {
-            if (JSON.stringify(list) !== JSON.stringify(entries[date])) await upsertEntries(userId, date, list);
-          }
+          const frozen = freezeLegacyEntries(migratePaymentSnapshots(entries, loadedSettings), loadedSettings);
+          const migrated = Object.fromEntries(Object.entries(frozen)
+            .filter(([date, list]) => JSON.stringify(list) !== JSON.stringify(entries[date])));
+          await upsertEntryRows(userId, migrated);
           if (get().userId !== userId) return;
           const actualPayments: ActualPaymentsMap = {};
           for (const row of paymentsRes.data ?? []) {

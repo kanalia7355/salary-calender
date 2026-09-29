@@ -23,6 +23,15 @@ export default function PaymentLabelsEditor({ labels, onChange }: Props) {
         <input aria-label="支払元ラベル名" className={inputClass} value={label.name}
           onChange={e => update(label.id, { name: e.target.value })} />
       </label>
+      <div className="flex items-center justify-between gap-3 rounded bg-gray-50 p-2 text-sm dark:bg-gray-900">
+        <span>実働8時間超の25％割増</span>
+        <button type="button" role="switch" aria-checked={label.overtimePremiumEnabled ?? false}
+          aria-label={`${label.name || '支払元'}の8時間超割増`}
+          onClick={() => update(label.id, { overtimePremiumEnabled: !(label.overtimePremiumEnabled ?? false) })}
+          className={`relative h-6 w-11 rounded-full transition-colors ${label.overtimePremiumEnabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
+          <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${label.overtimePremiumEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+        </button>
+      </div>
       <label className="block text-xs">支払方式
         <select className={inputClass} value={label.rule.kind}
           onChange={e => update(label.id, { rule: e.target.value === 'daysAfterWork'
@@ -51,9 +60,12 @@ export default function PaymentLabelsEditor({ labels, onChange }: Props) {
             onChange={e => ruleField(label, 'payDay', Number(e.target.value))} />
         </label>
       </div>}
+      <button type="button" className="text-sm text-red-600 underline dark:text-red-400"
+        onClick={() => onChange(labels.filter(item => item.id !== label.id))}>この支払元ラベルを削除</button>
     </div>)}
     <button type="button" className="rounded bg-gray-100 dark:bg-gray-700 px-3 py-2 text-sm"
       onClick={() => onChange([...labels, { id: crypto.randomUUID(), name: '',
-        rule: { kind: 'daysAfterWork', days: 7 } }])}>支払元ラベルを追加</button>
+        rule: { kind: 'daysAfterWork', days: 7 }, overtimePremiumEnabled: false }])}>支払元ラベルを追加</button>
+    <p className="text-xs text-gray-500 dark:text-gray-400">ラベルを削除しても、登録済み勤務と保存済みの支払条件は削除されません。</p>
   </section>;
 }
