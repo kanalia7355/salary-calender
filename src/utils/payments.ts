@@ -59,7 +59,46 @@ export function snapshotPayment(dateKey: string, payerId: string | null | undefi
   return {
     payerId: label.id, payerName: label.name, rule: { ...label.rule },
     scheduledDate: paymentDate(dateKey, label.rule),
+    overtimePremiumEnabled: label.overtimePremiumEnabled ?? false,
   };
+}
+
+export function migratePaymentSnapshots(entries: EntriesMap, settings: DefaultSettings): EntriesMap {
+  return Object.fromEntries(Object.entries(entries).map(([date, list]) => [date, list.map(entry => {
+    const snapshot = entry.paymentSnapshot;
+    if (!snapshot) return entry;
+    const label = settings.paymentLabels?.find(item => item.id === snapshot.payerId);
+    const migrated: PaymentSnapshot = {
+      ...snapshot,
+      scheduledDate: paymentDate(date, snapshot.rule),
+      overtimePremiumEnabled: snapshot.overtimePremiumEnabled
+        ?? label?.overtimePremiumEnabled
+        ?? false,
+    };
+    return JSON.stringify(migrated) === JSON.stringify(snapshot)
+      ? entry
+      : { ...entry, paymentSnapshot: migrated };
+  })]));
+}
+
+export function monthlyPaymentSummary(entries: EntriesMap, settings: DefaultSettings, monthKey: string) {
+  const workDates = new Set<string>();
+  let entryCount = 0;
+  let payTotal = 0;
+  let withholdingTax = 0;
+  let transport = 0;
+  let otherFee = 0;
+  for (const [workDate, list] of Object.entries(entries)) for (const entry of list) {
+    if (!entry.paymentSnapshot?.scheduledDate.startsWith(monthKey)) continue;
+    workDates.add(workDate);
+    entryCount++;
+    const result = calcEntry(entry, settings);
+    payTotal += result.pay;
+    withholdingTax += result.withholdingTax;
+    transport += result.transport;
+    otherFee += result.otherFee;
+  }
+  return { workDays: workDates.size, entryCount, payTotal, withholdingTax, transport, otherFee };
 }
 
 export function freezeWages(entry: WorkEntry, settings: DefaultSettings): WorkEntry {

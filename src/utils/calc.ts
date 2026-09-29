@@ -41,7 +41,8 @@ export function calcEntry(entry: WorkEntry, def: DefaultSettings): CalcResult {
   const overtimeHours = overtimeMin / 60;
   const deepNightHours = deepNightMin / 60;
   // 重複部分は加算（通常設定では25% + 25%）。
-  const pay = workHours * rate + overtimeHours * rate * 0.25
+  const overtimePremiumEnabled = entry.paymentSnapshot?.overtimePremiumEnabled ?? false;
+  const pay = workHours * rate + overtimeHours * rate * (overtimePremiumEnabled ? 0.25 : 0)
     + deepNightHours * rate * (Math.max(1.25, mult) - 1);
 
   const withholdingTax = entry.withholdingTax ?? 0;

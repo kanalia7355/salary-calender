@@ -1,7 +1,7 @@
 import BulkPaymentLabels from './BulkPaymentLabels';
 import { useState } from 'react';
 import { useSalaryStore } from '../store/useSalaryStore';
-import { entriesByPaymentDate, paymentGroups } from '../utils/payments';
+import { monthlyPaymentSummary, paymentGroups } from '../utils/payments';
 import { calcEntry, formatCurrency } from '../utils/calc';
 
 interface Props {
@@ -20,7 +20,6 @@ export default function YearlySummary({ year }: Props) {
   const [basis, setBasis] = useState<'payment' | 'work'>('payment');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const sourceEntries = basis === 'payment' ? entriesByPaymentDate(entries) : entries;
   const groups = paymentGroups(entries, settings, year);
   const unassigned = Object.entries(entries).flatMap(([date, list]) =>
     list.filter(e => !e.paymentSnapshot).map(entry => ({ date, entry })));
@@ -37,34 +36,44 @@ export default function YearlySummary({ year }: Props) {
     const month = i + 1;
     const monthKey = `${year}-${String(month).padStart(2, '0')}`;
 
-    let days = 0;
-    let payTotal = 0;        // 総支給（交通費除く）
-    let withholdingTax = 0;  // 源泉徴収合計
-    let transport = 0;       // 交通費合計
-    let otherFee = 0;        // その他費用合計
+    let workDays = 0;
+    let entryCount = 0;
+    let payTotal = 0;
+    let withholdingTax = 0;
+    let transport = 0;
+    let otherFee = 0;
 
-    Object.entries(sourceEntries).forEach(([dateKey, dayEntries]) => {
-      if (!dateKey.startsWith(monthKey)) return;
-      if (dayEntries.length === 0) return;
-      days++;
-      dayEntries.forEach((e) => {
-        const r = calcEntry(e, settings);
-        payTotal       += r.pay;
-        withholdingTax += r.withholdingTax;
-        transport      += r.transport;
-        otherFee       += r.otherFee;
+    if (basis === 'payment') {
+      ({ workDays, entryCount, payTotal, withholdingTax, transport, otherFee }
+        = monthlyPaymentSummary(entries, settings, monthKey));
+    } else {
+      Object.entries(entries).forEach(([dateKey, dayEntries]) => {
+        if (!dateKey.startsWith(monthKey) || dayEntries.length === 0) return;
+        workDays++;
+        entryCount += dayEntries.length;
+        dayEntries.forEach((entry) => {
+          const result = calcEntry(entry, settings);
+          payTotal += result.pay;
+          withholdingTax += result.withholdingTax;
+          transport += result.transport;
+          otherFee += result.otherFee;
+        });
       });
-    });
+    }
 
     const netPay  = payTotal - withholdingTax;          // 手取り給与（交通費除く）
     const expected = netPay + transport + otherFee;     // 予定額合計
     const actual = basis === 'payment' ? actualPayments[monthKey] ?? null : null;
     const diff = actual !== null ? actual - expected : null;
 
-    return { label, monthKey, days, payTotal, withholdingTax, netPay, transport, otherFee, expected, actual, diff };
+    return { label, monthKey, workDays, entryCount, payTotal, withholdingTax, netPay, transport, otherFee, expected, actual, diff };
   });
 
   const totalExpected      = rows.reduce((s, r) => s + r.expected, 0);
+  const totalWorkDays = new Set(Object.entries(entries).flatMap(([workDate, list]) =>
+    list.some(entry => basis === 'payment'
+      ? entry.paymentSnapshot?.scheduledDate.startsWith(`${year}-`)
+      : workDate.startsWith(`${year}-`)) ? [workDate] : [])).size;
   const comparedExpected = rows.reduce((sum, r) => sum + (r.actual !== null ? r.expected : 0), 0);
   const totalActual        = rows.reduce((s, r) => s + (r.actual ?? 0), 0);
   const totalPayOnly       = rows.reduce((s, r) => s + r.payTotal, 0);
@@ -94,10 +103,11 @@ export default function YearlySummary({ year }: Props) {
   };
 
   const exportCsv = () => {
-    const headers = ['月', '対象日数', '総支給額（交通費除く）', '源泉徴収額', '手取り給与（交通費除く）', '交通費', 'その他費用', '給与見込み合計', '実振込額', '差額'];
+    const headers = ['月', '勤務日数', '勤務件数', '総支給額（交通費除く）', '源泉徴収額', '手取り給与（交通費除く）', '交通費', 'その他費用', '給与見込み合計', '実振込額', '差額'];
     const dataRows = rows.map((r) => [
       r.label,
-      r.days,
+      r.workDays,
+      r.entryCount,
       Math.round(r.payTotal),
       Math.round(r.withholdingTax),
       Math.round(r.netPay),
@@ -109,7 +119,8 @@ export default function YearlySummary({ year }: Props) {
     ]);
     const totalRow = [
       '合計',
-      rows.reduce((s, r) => s + r.days, 0),
+      totalWorkDays,
+      rows.reduce((s, r) => s + r.entryCount, 0),
       Math.round(totalPayOnly),
       Math.round(totalWithholding),
       Math.round(totalPayOnly - totalWithholding),
@@ -146,7 +157,7 @@ export default function YearlySummary({ year }: Props) {
       </div>
       <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
         {basis === 'payment' ? '振込予定月に集計します。実振込額は実際の入金月に入力してください。差額合計は入力済み月のみ比較します。' : '勤務月に集計します。実振込額との比較は振込予定月で行います。'}
-        対象日数は{basis === 'payment' ? '振込予定日の数' : '勤務日の数'}です。
+        勤務日数は、その月に集計された勤務の元の勤務日を重複なく数えます。
       </p>
       {error && <p role="alert" className="text-red-600">{error}</p>}
       {/* 年次サマリーカード */}
@@ -176,17 +187,21 @@ export default function YearlySummary({ year }: Props) {
             <tr className="text-gray-500 dark:text-gray-400 text-xs border-b border-gray-200 dark:border-gray-700">
               <th className="text-left py-2 pr-2 font-medium">月</th>
               <th className="text-right py-2 px-2 font-medium">勤務日数</th>
+              <th className="text-right py-2 px-2 font-medium">勤務件数</th>
               <th className="text-right py-2 px-2 font-medium">給与見込み</th>
               <th className="text-right py-2 px-2 font-medium">実振込額</th>
               <th className="text-right py-2 pl-2 font-medium">差額</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ label, monthKey, days, expected, actual, diff }) => (
+            {rows.map(({ label, monthKey, workDays, entryCount, expected, actual, diff }) => (
               <tr key={monthKey} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors">
                 <td className="py-2 pr-2 text-gray-700 dark:text-gray-200 font-medium">{label}</td>
                 <td className="py-2 px-2 text-right text-gray-500 dark:text-gray-400">
-                  {days > 0 ? `${days}日` : <span className="text-gray-400 dark:text-gray-600">—</span>}
+                  {workDays > 0 ? `${workDays}日` : <span className="text-gray-400 dark:text-gray-600">—</span>}
+                </td>
+                <td className="py-2 px-2 text-right text-gray-500 dark:text-gray-400">
+                  {entryCount > 0 ? `${entryCount}件` : <span className="text-gray-400 dark:text-gray-600">—</span>}
                 </td>
                 <td className="py-2 px-2 text-right text-gray-900 dark:text-white">
                   {expected > 0 ? formatCurrency(expected) : <span className="text-gray-400 dark:text-gray-600">—</span>}
@@ -231,7 +246,10 @@ export default function YearlySummary({ year }: Props) {
             <tr className="border-t border-gray-300 dark:border-gray-600 text-sm font-bold">
               <td className="py-2 pr-2 text-gray-600 dark:text-gray-300">合計</td>
               <td className="py-2 px-2 text-right text-gray-500 dark:text-gray-400">
-                {rows.reduce((s, r) => s + r.days, 0)}日
+                {totalWorkDays}日
+              </td>
+              <td className="py-2 px-2 text-right text-gray-500 dark:text-gray-400">
+                {rows.reduce((s, r) => s + r.entryCount, 0)}件
               </td>
               <td className="py-2 px-2 text-right text-gray-900 dark:text-white">{formatCurrency(totalExpected)}</td>
               <td className="py-2 px-2 text-right text-gray-900 dark:text-white">
