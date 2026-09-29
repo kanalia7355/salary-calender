@@ -1,4 +1,4 @@
-import type { WorkEntry, DefaultSettings, EntriesMap, PaymentRule, PaymentSnapshot } from '../types';
+import type { WorkEntry, DefaultSettings, EntriesMap, PaymentRule, PaymentSnapshot, ActualPaymentsMap } from '../types';
 import { calcEntry } from './calc.ts';
 
 export function todayInJapan(): string {
@@ -99,6 +99,24 @@ export function monthlyPaymentSummary(entries: EntriesMap, settings: DefaultSett
     otherFee += result.otherFee;
   }
   return { workDays: workDates.size, entryCount, payTotal, withholdingTax, transport, otherFee };
+}
+
+export function yearlyPaymentAnalysis(entries: EntriesMap, settings: DefaultSettings,
+  actualPayments: ActualPaymentsMap, year: number) {
+  return Array.from({ length: 12 }, (_, index) => {
+    const monthKey = `${year}-${String(index + 1).padStart(2, '0')}`;
+    const summary = monthlyPaymentSummary(entries, settings, monthKey);
+    const netPay = summary.payTotal - summary.withholdingTax;
+    const total = netPay + summary.transport + summary.otherFee;
+    return {
+      ...summary,
+      monthKey,
+      netPay,
+      total,
+      payOnly: netPay + summary.otherFee,
+      actual: actualPayments[monthKey] ?? null,
+    };
+  });
 }
 
 export function freezeWages(entry: WorkEntry, settings: DefaultSettings): WorkEntry {
