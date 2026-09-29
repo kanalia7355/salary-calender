@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { calcEntry, calcDay } from '../src/utils/calc.ts';
-import { assignPaymentLabel, paymentDate, prepareEntry, freezeLegacyEntries, migratePaymentSnapshots, monthlyPaymentSummary, snapshotPayment, entriesByPaymentDate, paymentGroups } from '../src/utils/payments.ts';
+import { assignPaymentLabel, paymentDate, prepareEntry, freezeLegacyEntries, migratePaymentSnapshots, monthlyPaymentSummary, yearlyPaymentAnalysis, snapshotPayment, entriesByPaymentDate, paymentGroups } from '../src/utils/payments.ts';
 
 const settings = { hourlyRate: 1000, standardHours: 8, overtimeMultiplier: 1.25, showTagTab: false,
   paymentLabels: [
@@ -69,6 +69,16 @@ test('振込月集計は振込予定日数ではなく元の勤務日数と勤�
   const summary = monthlyPaymentSummary({ '2026-09-01': [first, second], '2026-09-02': [third] }, settings, '2026-09');
   assert.equal(summary.workDays, 2);
   assert.equal(summary.entryCount, 3);
+});
+test('分析タブの予定額は実振込額で上書きしない', () => {
+  const paid = prepareEntry('2026-09-01', entry('09:00', '18:00', {
+    id: 'paid', payerId: 'a', breakMinutes: 60, transportFee: 500, otherFee: 200,
+  }), settings);
+  const analysis = yearlyPaymentAnalysis({ '2026-09-01': [paid] }, settings,
+    { '2026-09': 99999 }, 2026)[8];
+  assert.equal(analysis.total, 8700);
+  assert.equal(analysis.payOnly, 8200);
+  assert.equal(analysis.actual, 99999);
 });
 for (const [date, rule, expected] of [
   ['2026-12-28', { kind: 'daysAfterWork', days: 7 }, '2027-01-04'],

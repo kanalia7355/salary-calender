@@ -1,7 +1,6 @@
 import { useMemo, useState, useRef } from 'react';
 import { useSalaryStore } from '../store/useSalaryStore';
-import { entriesByPaymentDate } from '../utils/payments';
-import { calcEntry } from '../utils/calc';
+import { yearlyPaymentAnalysis } from '../utils/payments';
 
 interface Props {
   year: number;
@@ -43,7 +42,6 @@ interface BarChartProps {
   title: string;
   subtitle: string;
   data: number[];
-  hasActual: boolean[];
   breakdown: BreakdownItem[];
   showTransport: boolean;
   barFill: string;
@@ -51,7 +49,7 @@ interface BarChartProps {
   isDark: boolean;
 }
 
-function BarChart({ title, subtitle, data, hasActual, breakdown, showTransport, barFill, barFillDark, isDark }: BarChartProps) {
+function BarChart({ title, subtitle, data, breakdown, showTransport, barFill, barFillDark, isDark }: BarChartProps) {
   const [tooltip, setTooltip] = useState<{ i: number; x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -72,7 +70,6 @@ function BarChart({ title, subtitle, data, hasActual, breakdown, showTransport, 
   const barW = Math.max(slotW * 0.55, 8);
 
   const fillBase    = isDark ? barFillDark : barFill;
-  const fillEstimate = isDark ? `${barFillDark}66` : `${barFill}55`;
   const textColor = isDark ? '#d1d5db' : '#374151';
   const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
   const axisColor = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)';
@@ -128,7 +125,7 @@ function BarChart({ title, subtitle, data, hasActual, breakdown, showTransport, 
               {barH > 0 && (
                 <rect
                   x={x} y={y} width={barW} height={barH}
-                  fill={hasActual[i] ? fillBase : fillEstimate} rx={3}
+                  fill={fillBase} rx={3}
                   onMouseMove={(e) => handleMouseMove(e, i)}
                   onMouseLeave={() => setTooltip(null)}
                   style={{ cursor: 'default' }}
@@ -158,11 +155,7 @@ function BarChart({ title, subtitle, data, hasActual, breakdown, showTransport, 
       <div className="flex items-center gap-4 mt-2">
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-sm" style={{ background: fillBase }} />
-          <span className="text-xs text-gray-500 dark:text-gray-400">実振込額ベース</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-sm" style={{ background: fillEstimate }} />
-          <span className="text-xs text-gray-500 dark:text-gray-400">計算見込み</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">振込予定額</span>
         </div>
       </div>
 
@@ -177,27 +170,7 @@ function BarChart({ title, subtitle, data, hasActual, breakdown, showTransport, 
           }}
         >
           <div className="font-semibold mb-1 text-gray-200">{MONTH_LABELS[tooltip.i]}月</div>
-          {bd.hasActual ? (
-            <>
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">実振込額</span>
-                <span>{fmt(bd.actual!)}</span>
-              </div>
-              {showTransport && (
-                <div className="flex justify-between gap-4">
-                  <span className="text-gray-400">交通費（予定）</span>
-                  <span>{fmt(bd.transport)}</span>
-                </div>
-              )}
-              {showTransport && (
-                <div className="flex justify-between gap-4 border-t border-gray-600 mt-1 pt-1">
-                  <span className="text-gray-400">給与等（推定）</span>
-                  <span>{fmt(bd.actual! - bd.transport)}</span>
-                </div>
-              )}
-            </>
-          ) : (
-            <>
+          <>
               <div className="flex justify-between gap-4">
                 <span className="text-gray-400">手取り給与</span>
                 <span>{fmt(bd.netPay)}</span>
@@ -215,11 +188,13 @@ function BarChart({ title, subtitle, data, hasActual, breakdown, showTransport, 
                 </div>
               )}
               <div className="flex justify-between gap-4 border-t border-gray-600 mt-1 pt-1 font-semibold">
-                <span className="text-gray-300">合計</span>
+                <span className="text-gray-300">振込予定額</span>
                 <span>{fmt(data[tooltip.i])}</span>
               </div>
-            </>
-          )}
+              {bd.hasActual && <div className="flex justify-between gap-4 text-blue-300">
+                <span>実振込額</span><span>{fmt(bd.actual!)}</span>
+              </div>}
+          </>
         </div>
       )}
     </div>
@@ -233,34 +208,12 @@ export default function AnalysisTab({ year }: Props) {
   const isDark = document.documentElement.classList.contains('dark');
 
   const monthlyData = useMemo(() => {
-    return Array.from({ length: 12 }, (_, i) => {
-      const monthKey = `${year}-${String(i + 1).padStart(2, '0')}`;
-      let payTotal = 0, withholdingTax = 0, transport = 0, otherFee = 0;
-
-      Object.entries(entriesByPaymentDate(entries)).forEach(([dateKey, dayEntries]) => {
-        if (!dateKey.startsWith(monthKey)) return;
-        dayEntries.forEach((e) => {
-          const r = calcEntry(e, settings);
-          payTotal       += r.pay;
-          withholdingTax += r.withholdingTax;
-          transport      += r.transport;
-          otherFee       += r.otherFee;
-        });
-      });
-
-      const netPay = payTotal - withholdingTax;
-      const actual = actualPayments[monthKey] ?? null;
-
-      const total   = actual !== null ? actual : netPay + transport + otherFee;
-      const payOnly = actual !== null ? actual - transport : netPay + otherFee;
-
-      return { total, payOnly, hasActual: actual !== null, netPay, transport, otherFee, actual };
-    });
+    return yearlyPaymentAnalysis(entries, settings, actualPayments, year)
+      .map(data => ({ ...data, hasActual: data.actual !== null }));
   }, [entries, settings, actualPayments, year]);
 
   const totalData    = monthlyData.map((d) => d.total);
   const payOnlyData  = monthlyData.map((d) => d.payOnly);
-  const hasActualArr = monthlyData.map((d) => d.hasActual);
   const breakdown    = monthlyData.map((d) => ({
     netPay: d.netPay,
     transport: d.transport,
@@ -270,19 +223,21 @@ export default function AnalysisTab({ year }: Props) {
   }));
 
   const yearTotal   = totalData.reduce((s, v) => s + v, 0);
-  const yearPayOnly = payOnlyData.reduce((s, v) => s + v, 0);
   const yearNetPay  = monthlyData.reduce((s, d) => s + d.netPay, 0);
   const yearTransport = monthlyData.reduce((s, d) => s + d.transport, 0);
   const yearOtherFee  = monthlyData.reduce((s, d) => s + d.otherFee, 0);
+  const yearActual = monthlyData.reduce((s, d) => s + (d.actual ?? 0), 0);
+  const comparedExpected = monthlyData.reduce((s, d) => s + (d.actual !== null ? d.total : 0), 0);
+  const registeredCount = monthlyData.filter(d => d.actual !== null).length;
 
   return (
     <div className="space-y-5">
       <p className="text-xs text-gray-500 dark:text-gray-400">振込予定月基準。予定日未設定の勤務は含みません。交通費の内訳は予定額です。</p>
       {/* 年間サマリー */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* 年間収入合計 */}
         <div className="group relative bg-white dark:bg-gray-800 rounded-lg p-3 cursor-default">
-          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">年間収入合計</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">年間振込予定額</div>
           <div className="text-lg font-bold text-gray-900 dark:text-white">
             ¥{yearTotal.toLocaleString('ja-JP')}
           </div>
@@ -305,24 +260,17 @@ export default function AnalysisTab({ year }: Props) {
           </div>
         </div>
 
-        {/* 年間収入（交通費除く） */}
+        {/* 実振込額 */}
         <div className="group relative bg-white dark:bg-gray-800 rounded-lg p-3 cursor-default">
-          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">年間収入（交通費除く）</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">実振込額合計（{registeredCount}ヶ月）</div>
           <div className="text-lg font-bold text-gray-900 dark:text-white">
-            ¥{yearPayOnly.toLocaleString('ja-JP')}
+            {registeredCount ? `¥${yearActual.toLocaleString('ja-JP')}` : '—'}
           </div>
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-20 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg px-3 py-2 shadow-xl whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-            <div className="font-semibold mb-1 text-gray-200">内訳</div>
-            <div className="flex justify-between gap-4">
-              <span className="text-gray-400">手取り給与</span>
-              <span>{fmt(yearNetPay)}</span>
-            </div>
-            {yearOtherFee > 0 && (
-              <div className="flex justify-between gap-4">
-                <span className="text-gray-400">その他費用</span>
-                <span>{fmt(yearOtherFee)}</span>
-              </div>
-            )}
+        </div>
+        <div className="group relative bg-white dark:bg-gray-800 rounded-lg p-3 cursor-default">
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">差額（実振込 − 見込み）</div>
+          <div className={`text-lg font-bold ${yearActual - comparedExpected >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {registeredCount ? `${yearActual - comparedExpected >= 0 ? '+' : ''}${fmt(yearActual - comparedExpected)}` : '—'}
           </div>
         </div>
       </div>
@@ -330,9 +278,8 @@ export default function AnalysisTab({ year }: Props) {
       {/* グラフ2本 */}
       <BarChart
         title="月別収入（合計）"
-        subtitle="手取り給与 ＋ 交通費 ＋ その他費用　※実振込額登録済みの月はその値を使用"
+        subtitle="振込予定月の手取り給与 ＋ 交通費 ＋ その他費用"
         data={totalData}
-        hasActual={hasActualArr}
         breakdown={breakdown}
         showTransport={true}
         barFill="#2563eb"
@@ -341,9 +288,8 @@ export default function AnalysisTab({ year }: Props) {
       />
       <BarChart
         title="月別収入（交通費除く）"
-        subtitle="手取り給与 ＋ その他費用　※実振込額登録済みの月は（実振込額 − 交通費）"
+        subtitle="振込予定月の手取り給与 ＋ その他費用"
         data={payOnlyData}
-        hasActual={hasActualArr}
         breakdown={breakdown}
         showTransport={false}
         barFill="#059669"
